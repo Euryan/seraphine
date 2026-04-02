@@ -611,6 +611,6 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 ---
 
-**Made with ❤️ by PAKrizki**
+**Made with ❤️ by Eureka,Sergio,Giarda,Setiawan**
 
 Last Updated: April 2, 2026
