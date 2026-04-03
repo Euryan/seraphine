@@ -1,14 +1,26 @@
 import { PRODUCTS } from './data.js';
 import { state } from './state.js';
 
-function renderProductCard(product) {
-    const isWishlisted = state.wishlist.some(p => p.id === product.id);
+function renderProductCard(productData) {
+    const product = productData.product_id ? PRODUCTS.find(p => p.id === productData.product_id) : PRODUCTS.find(p => p.id === productData.id) || productData;
+    if (!product) {
+        return `<div class="p-6 border rounded-lg text-sm text-red-500">Product data not found</div>`;
+    }
+
+    const isWishlisted = state.wishlist.some(w => {
+        if (w.product_id) return w.product_id === product.id;
+        return w.id === product.id;
+    });
+
+    const image1 = product.images?.[0] || 'https://via.placeholder.com/400x600?text=No+Image';
+    const image2 = product.images?.[1] || '';
+
     return `
         <div class="group relative fade-in">
             <div class="relative aspect-[3/4] overflow-hidden bg-zinc-100">
                 <a href="#" onclick="event.preventDefault(); window.navigate('product', {productId: '${product.id}'})">
-                    <img src="${product.images[0]}" alt="${product.name}" class="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-110" referrerPolicy="no-referrer">
-                    ${product.images[1] ? `<img src="${product.images[1]}" alt="${product.name}" class="absolute inset-0 h-full w-full object-cover object-center opacity-0 transition-opacity duration-700 group-hover:opacity-100" referrerPolicy="no-referrer">` : ''}
+                    <img src="${image1}" alt="${product.name}" class="h-full w-full object-cover object-center transition-transform duration-700 group-hover:scale-110" referrerPolicy="no-referrer">
+                    ${image2 ? `<img src="${image2}" alt="${product.name}" class="absolute inset-0 h-full w-full object-cover object-center opacity-0 transition-opacity duration-700 group-hover:opacity-100" referrerPolicy="no-referrer">` : ''}
                 </a>
                 <div class="absolute top-4 left-4 flex flex-col gap-2">
                     ${product.isNew ? `<span class="bg-black text-white text-[10px] font-bold uppercase tracking-widest px-3 py-1">New</span>` : ''}
@@ -196,24 +208,38 @@ export const Pages = {
                 <a href="#" onclick="event.preventDefault(); window.navigate('shop')" class="inline-block bg-black text-white px-12 py-5 text-xs font-bold uppercase tracking-[0.2em]">Start Shopping</a>
             </div>
         `;
-        const total = state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
+        const total = state.cart.reduce((sum, item) => {
+            const product = PRODUCTS.find(p => p.id === item.product_id || p.id === item.id);
+            const price = item.price || (product ? product.price : 0);
+            const quantity = item.quantity || 1;
+            return sum + (price * quantity);
+        }, 0);
+
         return `
             <div class="pt-32 pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full fade-in">
                 <h1 class="text-4xl md:text-5xl font-serif mb-12">Shopping Bag</h1>
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-16">
                     <div class="lg:col-span-2 space-y-8">
-                        ${state.cart.map(item => `
+                        ${state.cart.map(item => {
+                            const product = PRODUCTS.find(p => p.id === item.product_id || p.id === item.id);
+                            const imageUrl = product ? product.images?.[0] : '';
+                            const name = product ? product.name : (item.name || 'Unknown Product');
+                            const price = item.price || (product ? product.price : 0);
+                            const quantity = item.quantity || 1;
+                            return `
                             <div class="flex space-x-6 py-8 border-b border-zinc-100">
                                 <div class="w-24 h-32 bg-zinc-100 flex-shrink-0">
-                                    <img src="${item.images[0]}" class="w-full h-full object-cover" referrerPolicy="no-referrer">
+                                    <img src="${imageUrl}" class="w-full h-full object-cover" referrerPolicy="no-referrer">
                                 </div>
                                 <div class="flex-grow">
-                                    <h3 class="text-sm font-bold uppercase tracking-widest">${item.name}</h3>
-                                    <p class="text-xs text-zinc-500 mt-1">$${item.price.toLocaleString()}</p>
+                                    <h3 class="text-sm font-bold uppercase tracking-widest">${name}</h3>
+                                    <p class="text-xs text-zinc-500 mt-1">$${price.toLocaleString()} x ${quantity}</p>
                                     <button onclick="window.removeFromCart('${item.id}')" class="text-[10px] uppercase tracking-widest text-zinc-400 hover:text-red-500 mt-4">Remove</button>
                                 </div>
                             </div>
-                        `).join('')}
+                        `;
+                        }).join('')}
                     </div>
                     <div class="lg:col-span-1">
                         <div class="bg-zinc-50 p-8 sticky top-32">
@@ -239,14 +265,42 @@ export const Pages = {
                 <div class="bg-white p-8 md:p-12 border border-zinc-100 shadow-2xl">
                     <form onsubmit="event.preventDefault(); window.handleLogin(this)" class="space-y-6">
                         <div class="space-y-2">
-                            <label class="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Email</label>
-                            <input type="email" name="email" required class="w-full px-4 py-3 border border-zinc-200 focus:border-black outline-none text-sm">
+                            <label class="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Username</label>
+                            <input type="text" name="username" required class="w-full px-4 py-3 border border-zinc-200 focus:border-black outline-none text-sm" placeholder="Masukkan username">
                         </div>
                         <div class="space-y-2">
                             <label class="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Password</label>
-                            <input type="password" name="password" required class="w-full px-4 py-3 border border-zinc-200 focus:border-black outline-none text-sm">
+                            <input type="password" name="password" required class="w-full px-4 py-3 border border-zinc-200 focus:border-black outline-none text-sm" placeholder="Masukkan password">
                         </div>
                         <button type="submit" class="w-full py-4 bg-black text-white text-xs font-bold uppercase tracking-[0.2em]">Sign In</button>
+                    </form>
+                    <p class="text-center text-zinc-500 text-xs mt-4">Belum punya akun? <a href="#" onclick="event.preventDefault(); window.navigate('register')" class="text-black font-bold">Daftar di sini</a></p>
+                </div>
+            </div>
+        </div>
+    `,
+    register:() => `
+        <div class="min-h-screen flex items-center justify-center pt-20 pb-12 px-6 fade-in">
+            <div class="w-full max-w-md">
+                <div class="text-center mb-12">
+                    <h1 class="text-4xl font-serif mb-4 uppercase">Seraphine</h1>
+                    <p class="text-zinc-500 uppercase tracking-widest text-[10px] font-bold">Create an Account</p>
+                </div>
+                <div class="bg-white p-8 md:p-12 border border-zinc-100 shadow-2xl">
+                    <form onsubmit="event.preventDefault(); window.handleRegister(this)" class="space-y-6">
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Username</label>
+                            <input type="text" name="username" required class="w-full px-4 py-3 border border-zinc-200 focus:border-black outline-none text-sm" placeholder="Nama pengguna">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Email</label>
+                            <input type="email" name="email" required class="w-full px-4 py-3 border border-zinc-200 focus:border-black outline-none text-sm" placeholder="example@domain.com">
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-[10px] font-bold uppercase tracking-widest text-zinc-500">Password</label>
+                            <input type="password" name="password" required class="w-full px-4 py-3 border border-zinc-200 focus:border-black outline-none text-sm" placeholder="Minimal 6 karakter">
+                        </div>
+                        <button type="submit" class="w-full py-4 bg-black text-white text-xs font-bold uppercase tracking-[0.2em]">Sign Up</button>
                     </form>
                 </div>
             </div>
@@ -286,11 +340,18 @@ export const Pages = {
                 </div>
             `;
         }
+        const wishlistProducts = state.wishlist
+            .map(w => {
+                if (w.product_id) return PRODUCTS.find(p => p.id === w.product_id);
+                return PRODUCTS.find(p => p.id === w.id) || null;
+            })
+            .filter(Boolean);
+
         return `
             <div class="pt-32 pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full fade-in">
                 <h1 class="text-4xl md:text-5xl font-serif mb-16">My Wishlist</h1>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                    ${state.wishlist.map(p => renderProductCard(p)).join('')}
+                    ${wishlistProducts.map(p => renderProductCard(p)).join('')}
                 </div>
             </div>
         `;
@@ -331,5 +392,68 @@ export const Pages = {
                 </form>
             </div>
         </div>
-    `
+    `,
+    orders: () => {
+        if (!state.user) {
+            return `
+                <div class="pt-32 pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full text-center fade-in">
+                    <h1 class="text-4xl md:text-5xl font-serif mb-8">My Orders</h1>
+                    <p class="text-zinc-500 mb-12">Please login to view your orders.</p>
+                    <a href="#" onclick="event.preventDefault(); window.navigate('login')" class="inline-block bg-black text-white px-10 py-4 text-xs font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors">Login</a>
+                </div>
+            `;
+        }
+
+        if (state.orders.length === 0) {
+            return `
+                <div class="pt-32 pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full text-center fade-in">
+                    <h1 class="text-4xl md:text-5xl font-serif mb-8">My Orders</h1>
+                    <p class="text-zinc-500 mb-12">You haven't placed any orders yet.</p>
+                    <a href="#" onclick="event.preventDefault(); window.navigate('shop')" class="inline-block bg-black text-white px-10 py-4 text-xs font-bold uppercase tracking-widest hover:bg-zinc-800 transition-colors">Start Shopping</a>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="pt-32 pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full fade-in">
+                <h1 class="text-4xl md:text-5xl font-serif mb-12">My Orders</h1>
+                <div class="space-y-8">
+                    ${state.orders.map(order => `
+                        <div class="bg-white border border-zinc-100 p-8 rounded-lg shadow-sm">
+                            <div class="flex flex-wrap items-center justify-between mb-6 pb-6 border-b border-zinc-100">
+                                <div>
+                                    <h3 class="text-lg font-bold">Order #${order.id}</h3>
+                                    <p class="text-zinc-500 text-sm">Placed on ${new Date(order.order_date).toLocaleDateString()}</p>
+                                </div>
+                                <div class="text-right">
+                                    <p class="text-sm text-zinc-500">Status: <span class="font-medium text-black">${order.status}</span></p>
+                                    <p class="text-lg font-bold">$${order.total_amount.toFixed(2)}</p>
+                                </div>
+                            </div>
+                            <div class="space-y-4">
+                                ${order.items.map(item => {
+                                    const product = PRODUCTS.find(p => p.id === item.product_id);
+                                    return `
+                                        <div class="flex items-center space-x-4 py-4 border-b border-zinc-50 last:border-b-0">
+                                            <div class="w-16 h-16 bg-zinc-100 rounded-lg overflow-hidden flex-shrink-0">
+                                                ${product && product.images ? `<img src="${product.images[0]}" alt="${product.name}" class="w-full h-full object-cover">` : ''}
+                                            </div>
+                                            <div class="flex-1">
+                                                <h4 class="font-medium">${product ? product.name : 'Product not found'}</h4>
+                                                <p class="text-zinc-500 text-sm">Quantity: ${item.quantity}</p>
+                                            </div>
+                                            <div class="text-right">
+                                                <p class="font-medium">$${(item.price * item.quantity).toFixed(2)}</p>
+                                                <p class="text-zinc-500 text-sm">$${item.price.toFixed(2)} each</p>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }
 };

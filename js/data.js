@@ -32,7 +32,8 @@ export const PRODUCTS = [
         stock: 5,
         rating: 4.8,
         reviews: 24,
-        isFeatured: true
+        isFeatured: true,
+        isNew: true
     },
     {
         id: '3',
@@ -86,6 +87,23 @@ export const PRODUCTS = [
     },
     {
         id: '6',
+        name: 'Cashmere Oversized Coat',
+        price: 3800,
+        category: 'Apparel',
+        description: 'Luxurious double-faced cashmere coat. Minimalist design with a relaxed fit and waist-defining belt.',
+        images: [
+            'https://images.unsplash.com/photo-1544022613-e87ca75a784a?auto=format&fit=crop&q=80&w=800',
+            'https://images.unsplash.com/photo-1544022613-e87ca75a784a?auto=format&fit=crop&q=80&w=800'
+        ],
+        sizes: ['S', 'M', 'L'],
+        colors: ['Camel', 'Ivory'],
+        stock: 4,
+        rating: 4.9,
+        reviews: 18,
+        isFeatured: true
+    },
+        {
+        id: '7',
         name: 'Cashmere Oversized Coat',
         price: 3800,
         category: 'Apparel',

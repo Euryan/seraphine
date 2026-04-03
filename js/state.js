@@ -1,18 +1,42 @@
 import { PRODUCTS } from './data.js';
 
+function getCartKey() {
+    return state.user ? `seraphine_cart_${state.user.username}` : 'seraphine_cart_guest';
+}
+
 export let state = {
-    user: JSON.parse(localStorage.getItem('seraphine_user')) || null,
-    cart: JSON.parse(localStorage.getItem('seraphine_cart')) || [],
-    wishlist: JSON.parse(localStorage.getItem('seraphine_wishlist')) || [],
+    user: null,
+    token: null,
+    cart: [],
+    wishlist: [],
     currentPage: 'home',
     currentProduct: null,
     shopCategory: 'All',
-    orders: JSON.parse(localStorage.getItem('seraphine_orders')) || []
+    orders: []
 };
+
+export function restoreState() {
+    state.user = JSON.parse(localStorage.getItem('seraphine_user')) || null;
+    state.token = localStorage.getItem('seraphine_token') || null;
+    state.wishlist = JSON.parse(localStorage.getItem('seraphine_wishlist')) || [];
+    state.orders = JSON.parse(localStorage.getItem('seraphine_orders')) || [];
+    
+    // Load cart berdasarkan user
+    if (state.user) {
+        const userCartKey = `seraphine_cart_${state.user.username}`;
+        state.cart = JSON.parse(localStorage.getItem(userCartKey)) || [];
+    } else {
+        state.cart = JSON.parse(localStorage.getItem('seraphine_cart_guest')) || [];
+    }
+}
+
+// Restore state saat module load
+restoreState();
 
 export function saveState() {
     localStorage.setItem('seraphine_user', JSON.stringify(state.user));
-    localStorage.setItem('seraphine_cart', JSON.stringify(state.cart));
+    localStorage.setItem('seraphine_token', state.token || '');
+    localStorage.setItem(getCartKey(), JSON.stringify(state.cart));
     localStorage.setItem('seraphine_wishlist', JSON.stringify(state.wishlist));
     localStorage.setItem('seraphine_orders', JSON.stringify(state.orders));
     updateCartBadge();

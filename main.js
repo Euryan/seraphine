@@ -1,11 +1,12 @@
 import './style.css';
 import { PRODUCTS } from './js/data.js';
-import { state, updateCartBadge } from './js/state.js';
+import { state, updateCartBadge, restoreState, saveState } from './js/state.js';
 import { Pages } from './js/pages.js';
-import { toggleWishlist, addToCart, removeFromCart, handleLogin, handleCheckout } from './js/logic.js';
+import { toggleWishlist, addToCart, removeFromCart, handleLogin, handleRegister, handleCheckout, fetchCart, fetchWishlist, fetchOrders } from './js/logic.js';
 
 // --- Router ---
 export function navigate(page, params = {}) {
+    restoreState(); // Restore state sebelum navigasi
     state.currentPage = page;
     if (params.productId) {
         state.currentProduct = PRODUCTS.find(p => p.id === params.productId);
@@ -19,6 +20,7 @@ export function navigate(page, params = {}) {
 
 // --- Main Render ---
 export function render() {
+    restoreState(); // Ensure state is fresh from localStorage
     const app = document.getElementById('app-content');
     const pageFn = Pages[state.currentPage] || Pages.home;
     app.innerHTML = pageFn();
@@ -27,6 +29,9 @@ export function render() {
     if (window.lucide) {
         window.lucide.createIcons();
     }
+
+    // Render User Menu
+    renderUserMenu();
 
     // Update Navbar Style
     const nav = document.getElementById('navbar');
@@ -39,8 +44,83 @@ export function render() {
     }
 }
 
+// --- Render User Menu ---
+function renderUserMenu() {
+    const userMenu = document.getElementById('user-menu');
+    if (!userMenu) return;
+
+    if (state.user) {
+        userMenu.innerHTML = `
+            <div class="relative">
+                <button id="user-menu-btn" class="flex items-center space-x-2 hover:text-gold transition-colors">
+                    <i data-lucide="user" size="20"></i>
+                    <span class="text-[10px] font-bold uppercase hidden md:inline">${state.user.username}</span>
+                </button>
+                <div id="user-dropdown" class="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 shadow-lg hidden z-50">
+                    <div class="px-4 py-3 border-b border-zinc-100">
+                        <p class="text-xs font-bold">Username: ${state.user.username}</p>
+                        ${state.user.email ? `<p class="text-xs text-zinc-500">Email: ${state.user.email}</p>` : ''}
+                    </div>
+                    <a href="#" onclick="event.preventDefault(); window.navigate('orders')" class="block px-4 py-3 text-xs font-bold uppercase hover:bg-zinc-50 transition-colors">
+                        My Orders
+                    </a>
+                    <button id="logout-btn" class="w-full text-left px-4 py-3 text-xs font-bold uppercase hover:bg-zinc-50 transition-colors">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        `;
+
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+
+        // Setup dropdown toggle dan logout
+        const userMenuBtn = document.getElementById('user-menu-btn');
+        const userDropdown = document.getElementById('user-dropdown');
+        const logoutBtn = document.getElementById('logout-btn');
+
+        if (userMenuBtn && userDropdown) {
+            userMenuBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                userDropdown.classList.toggle('hidden');
+            });
+
+            // Close dropdown saat click di tempat lain
+            document.addEventListener('click', (e) => {
+                if (!userMenu.contains(e.target)) {
+                    userDropdown.classList.add('hidden');
+                }
+            });
+        }
+
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                window.handleLogout();
+            });
+        }
+    } else {
+        userMenu.innerHTML = `
+            <a href="#" data-link="login" class="hover:text-gold transition-colors">
+                <i data-lucide="user" size="20"></i>
+            </a>
+        `;
+
+        if (window.lucide) {
+            window.lucide.createIcons();
+        }
+    }
+}
+
 // --- Event Listeners ---
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    restoreState();
+    if (state.user && state.token) {
+        await fetchCart();
+        await fetchWishlist();
+        await fetchOrders();
+    }
     render();
     updateCartBadge();
 
@@ -90,4 +170,15 @@ window.toggleWishlist = toggleWishlist;
 window.addToCart = addToCart;
 window.removeFromCart = removeFromCart;
 window.handleLogin = handleLogin;
+window.handleRegister = handleRegister;
 window.handleCheckout = handleCheckout;
+
+window.handleLogout = () => {
+    state.user = null;
+    state.token = null;
+    localStorage.removeItem('seraphine_user');
+    localStorage.removeItem('seraphine_token');
+    state.cart = JSON.parse(localStorage.getItem('seraphine_cart_guest')) || [];
+    saveState();
+    window.navigate('home');
+};
