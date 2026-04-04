@@ -1,571 +1,331 @@
-# Seraphine Couture
+# Seraphine Final
 
-Seraphine Couture is a full-stack fashion e-commerce application with a luxury storefront, user authentication, persistent cart and wishlist, checkout flow, and per-user order history. The project combines a Vite-based frontend with a FastAPI backend and MySQL persistence.
+Seraphine Final adalah project e-commerce full-stack yang terdiri dari storefront untuk pelanggan, dashboard admin operasional, dan backend API yang menjadi sumber data utama untuk produk, stok, pesanan, pelanggan, wishlist, cart, dan upload gambar produk.
 
-## Overview
+Project ini sudah menggunakan satu alur data yang terhubung:
 
-This repository currently contains:
+- produk dibaca dari backend dan dikelola dari admin
+- order dari storefront masuk ke backend lalu terlihat di admin
+- stok dikelola per varian size/color
+- checkout mengurangi stok varian yang benar
+- gambar produk dapat diunggah dari admin dan dipakai di storefront
 
-- A responsive storefront built with vanilla JavaScript and Tailwind CSS.
-- A FastAPI backend for authentication, cart, wishlist, and order processing.
-- MySQL-backed persistence for users, carts, wishlists, and orders.
-- Size-aware cart and order handling, so each product variant is tracked correctly.
-- Per-user order history isolation.
+## Ringkasan Arsitektur
 
-The application is suitable for portfolio use, academic demonstration, and further extension into a production-grade commerce platform.
+```text
+Seraphine_final/
+|-- admin/                 Dashboard admin (Vite + vanilla JS)
+|-- backend/               FastAPI + SQLAlchemy + MySQL
+|-- web/                   Storefront customer-facing (Vite + vanilla JS)
+|-- scripts/               Helper script untuk menjalankan backend dari root
+|-- package.json           Root workspace runner
+`-- README.md
+```
 
-## Current Features
+## Komponen Utama
 
-### Customer Experience
+### `backend/`
 
-- Browse curated products by category.
-- View product detail pages with image gallery and size options.
-- Require size selection before adding a product to the bag.
-- Keep separate bag entries for the same product in different sizes.
-- View selected size and quantity directly in the shopping bag.
-- Complete checkout and view order confirmation.
-- Review order history with size, quantity, price, and status.
+Backend berbasis FastAPI yang menangani:
 
-### Account Features
+- autentikasi user dengan JWT
+- katalog produk dan detail produk
+- cart dan wishlist user login
+- checkout dan riwayat order
+- sinkronisasi stok per varian size/color
+- endpoint admin untuk products, orders, customers
+- upload gambar produk ke `assets/img`
 
-- Register and log in with JWT-based authentication.
-- Persist cart, wishlist, and order data by authenticated user.
-- Keep guest cart support in local storage.
-- Keep order history isolated per user account.
+File penting:
 
-### Backend Capabilities
+- [backend/app.py](backend/app.py)
+- [backend/database.py](backend/database.py)
+- [backend/models.py](backend/models.py)
+- [backend/product_catalog.py](backend/product_catalog.py)
+- [backend/requirements.txt](backend/requirements.txt)
 
-- User registration and login.
-- Cart add, list, remove, and clear endpoints.
-- Wishlist add, list, and remove endpoints.
-- Order checkout and order retrieval endpoints.
-- Automatic table creation on startup.
-- Automatic `size` column migration for existing `cart_items` and `order_items` tables.
+### `web/`
 
-## Tech Stack
-
-### Frontend
+Frontend customer-facing untuk pengalaman belanja. Stack yang dipakai:
 
 - Vite
-- Vanilla JavaScript (ES modules)
-- Tailwind CSS v4
-- Lucide icons
-- Local storage for guest/session state
+- Tailwind CSS
+- vanilla JavaScript modular
+
+Fitur utama web saat ini:
+
+- browse produk dari backend
+- detail produk dengan pemilihan size dan color
+- cart dan wishlist hanya untuk user login
+- checkout yang tervalidasi dengan stok backend
+- penyesuaian quantity otomatis jika stok tersisa kurang dari quantity yang diminta
+- order history user
+
+File penting:
+
+- [web/index.html](web/index.html)
+- [web/main.js](web/main.js)
+- [web/style.css](web/style.css)
+- [web/js/data.js](web/js/data.js)
+- [web/js/logic.js](web/js/logic.js)
+- [web/js/pages.js](web/js/pages.js)
+- [web/js/state.js](web/js/state.js)
+- [web/package.json](web/package.json)
+- [web/vite.config.ts](web/vite.config.ts)
+
+### `admin/`
+
+Frontend dashboard admin untuk operasi toko. Admin sekarang tidak lagi memakai mock data untuk katalog utama, order, dan customer list. Data utamanya berasal dari backend.
+
+Fitur utama admin saat ini:
+
+- dashboard operasional dengan analytics live
+- CRUD produk
+- manajemen stok per varian size/color
+- upload gambar produk
+- monitoring order dan update status order
+- daftar pelanggan dari data order/user backend
+- export CSV untuk beberapa modul
+
+Catatan penting:
+
+- login admin saat ini masih bersifat demo/local di sisi frontend admin
+- data dashboard, produk, order, dan customer sudah live ke backend
+
+File penting:
+
+- [admin/index.html](admin/index.html)
+- [admin/src/script.js](admin/src/script.js)
+- [admin/src/modules/dashboard.js](admin/src/modules/dashboard.js)
+- [admin/src/modules/products.js](admin/src/modules/products.js)
+- [admin/src/modules/orders.js](admin/src/modules/orders.js)
+- [admin/src/modules/customers.js](admin/src/modules/customers.js)
+- [admin/src/modules/data.js](admin/src/modules/data.js)
+- [admin/package.json](admin/package.json)
+- [admin/vite.config.js](admin/vite.config.js)
+
+## Teknologi yang Digunakan
 
 ### Backend
 
 - FastAPI
 - SQLAlchemy
-- MySQL with PyMySQL
-- JWT authentication with `python-jose`
-- Password hashing with `passlib` and `bcrypt`
-- Uvicorn
-
-## Project Structure
-
-```text
-Seraphine_final/
-|-- assets/
-|   `-- img/
-|-- backend/
-|   |-- .env
-|   |-- __init__.py
-|   |-- app.py
-|   |-- database.py
-|   |-- models.py
-|   `-- requirements.txt
-|-- js/
-|   |-- data.js
-|   |-- logic.js
-|   |-- pages.js
-|   `-- state.js
-|-- assets/
-|-- eslint.config.js
-|-- index.html
-|-- main.js
-|-- metadata.json
-|-- package.json
-|-- README.md
-|-- style.css
-|-- test.html
-`-- vite.config.ts
-```
-
-## Architecture Summary
+- MySQL + PyMySQL
+- python-jose
+- passlib
+- uvicorn
 
 ### Frontend
 
-The frontend is a single-page application rendered from modular JavaScript files:
+- Vite
+- Tailwind CSS
+- vanilla JavaScript
 
-- `main.js` initializes navigation, rendering, and global event wiring.
-- `js/pages.js` defines page templates for home, shop, product, cart, checkout, wishlist, and orders.
-- `js/logic.js` handles API communication and business logic.
-- `js/state.js` persists local UI state and user-scoped storage.
-- `js/data.js` contains the current product catalog.
+### Workspace / Tooling
 
-### Backend
+- Node.js
+- npm workspaces sederhana melalui root scripts
+- `concurrently` untuk menjalankan semua service sekaligus
 
-The backend exposes REST endpoints for authenticated commerce operations:
+## Port Development
 
-- `backend/app.py` contains FastAPI routes, auth helpers, schemas, and startup-level schema adjustment for `size` fields.
-- `backend/models.py` defines SQLAlchemy models for users, carts, wishlists, orders, and order items.
-- `backend/database.py` defines the SQLAlchemy engine and session factory.
+- Storefront web: `http://localhost:3000`
+- Admin dashboard: `http://localhost:3101`
+- Backend API: `http://localhost:8000`
 
-## API Summary
+## Database dan Environment
 
-### Authentication
+Backend menggunakan MySQL melalui environment variable `SQLALCHEMY_DATABASE_URL`.
 
-- `POST /auth/register`
-- `POST /auth/login`
+Default fallback di [backend/database.py](backend/database.py) adalah:
 
-### Cart
+```env
+mysql+pymysql://root:@localhost/seraphine_db
+```
 
-- `POST /cart/add`
-- `GET /cart`
-- `DELETE /cart/{item_id}`
-- `POST /cart/clear`
+Artinya, jika Anda tidak mengisi environment variable, backend akan mencoba terkoneksi ke database MySQL lokal bernama `seraphine_db` dengan user `root` tanpa password.
 
-### Wishlist
+Contoh override di PowerShell:
 
-- `POST /wishlist/add`
-- `GET /wishlist`
-- `DELETE /wishlist/{item_id}`
+```powershell
+$env:SQLALCHEMY_DATABASE_URL="mysql+pymysql://root:password@localhost/seraphine_db"
+```
 
-### Orders
+## Cara Menjalankan
 
-- `POST /orders/checkout`
-- `GET /orders`
-- `GET /orders/{order_id}`
+### Opsi 1: Jalankan semua service dari root
 
-## Local Development Setup
+Instal dependency Node.js terlebih dahulu:
 
-### 1. Prerequisites
-
-Install the following first:
-
-- Node.js 18+
-- npm 9+
-- Python 3.10+
-- MySQL Server
-
-### 2. Clone the Repository
-
-```bash
-git clone <your-repository-url>
+```powershell
 cd Seraphine_final
-```
-
-### 3. Frontend Setup
-
-Install frontend dependencies:
-
-```bash
 npm install
+npm --prefix web install
+npm --prefix admin install
 ```
 
-Start the frontend:
-
-```bash
-npm run dev
-```
-
-The Vite development server runs on:
-
-- `http://localhost:3000`
-
-### 4. Backend Setup
-
-Create and activate a virtual environment inside `backend` if desired.
-
-Windows PowerShell:
+Siapkan dependency Python backend di environment yang Anda gunakan:
 
 ```powershell
 cd backend
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 pip install bcrypt==4.0.1
+cd ..
 ```
 
-Start the API server:
+Lalu jalankan semua service:
 
-```bash
-uvicorn app:app --reload
-```
-
-The backend runs on:
-
-- `http://localhost:8000`
-
-### 5. Database Configuration
-
-The current database connection is configured in `backend/database.py`:
-
-```python
-SQLALCHEMY_DATABASE_URL = "mysql+pymysql://root:@localhost/seraphine_db"
-```
-
-Create the MySQL database before running the backend:
-
-```sql
-CREATE DATABASE seraphine_db;
-```
-
-### 6. Backend Environment Variables
-
-Create `backend/.env` with values like:
-
-```env
-SECRET_KEY=your-secret-key
-ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-```
-
-## How Size Handling Works
-
-The current implementation treats each product-size combination as a distinct cart line item.
-
-Examples:
-
-- Product `Silk Evening Gown`, size `S`, quantity `2` becomes one cart line.
-- Product `Silk Evening Gown`, size `M`, quantity `1` becomes a separate cart line.
-
-This behavior ensures:
-
-- Users must select a size before adding to cart.
-- The bag shows the selected size for each line item.
-- Orders preserve the selected size of every purchased item.
-- Quantity aggregation only happens when both product and size match.
-
-## Scripts
-
-Frontend scripts available from the repository root:
-
-```bash
+```powershell
 npm run dev
-npm run build
-npm run preview
-npm run lint
 ```
 
-Backend is started manually from `backend/`:
+Root runner akan menjalankan:
 
-```bash
+- web via [web/package.json](web/package.json)
+- admin via [admin/package.json](admin/package.json)
+- backend via [scripts/run-backend.cjs](scripts/run-backend.cjs)
+
+### Opsi 2: Jalankan per aplikasi
+
+#### Backend
+
+```powershell
+cd backend
+pip install -r requirements.txt
+pip install bcrypt==4.0.1
 uvicorn app:app --reload
 ```
 
-## Known Notes
+#### Web
 
-- The frontend currently uses static product data from `js/data.js`.
-- The API base URL in the frontend is `http://localhost:8000`.
-- CORS is configured for local frontend origins in the FastAPI app.
-- Linting currently passes for source files; any warning in `dist/` is generated output rather than source logic.
-
-## Recommended Next Improvements
-
-- Move product catalog management from static data into backend APIs.
-- Add quantity increment and decrement controls directly in the bag.
-- Add admin features for product and inventory management.
-- Add payment gateway integration.
-- Add database migrations with Alembic instead of startup-time schema adjustments.
-- Move the database URL into environment variables for safer deployment.
-
-## License
-
-This repository does not currently declare a license file. Add one if you plan to distribute the project publicly.
-npm run build
+```powershell
+cd web
+npm install
+npm run dev
 ```
 
-Output:
-- Minified CSS
-- Optimized JavaScript
-- Compressed HTML
-- All assets bundled in `dist/`
+#### Admin
 
-### Deployment Options
-
-#### Vercel
-```bash
-npm install -g vercel
-vercel
+```powershell
+cd admin
+npm install
+npm run dev
 ```
 
-#### Netlify
-```bash
-npm install -g netlify-cli
-netlify deploy --prod --dir=dist
-```
-
-#### Traditional Hosting
-1. Build: `npm run build`
-2. Upload `dist/` folder to your web server
-3. Configure server to serve `index.html` for all routes
-
-#### Docker Deployment
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY package.json .
-RUN npm install
-COPY . .
-RUN npm run build
-EXPOSE 3000
-CMD ["npm", "run", "preview"]
-```
-
----
+## Konfigurasi Launcher Backend Root
 
-## ⚙️ Configuration
+Root script [scripts/run-backend.cjs](scripts/run-backend.cjs) mendukung tiga mode:
 
-### Vite Configuration (`vite.config.ts`)
+1. Default Conda
 
-```typescript
-import tailwindcss from '@tailwindcss/vite';
-import { defineConfig } from 'vite';
+	Script akan menjalankan backend dengan:
 
-export default defineConfig({
-  plugins: [tailwindcss()],
-  server: {
-    hmr: process.env.DISABLE_HMR !== 'true',
-  },
-});
-```
-
-**Options:**
-- `HMR`: Hot Module Replacement (enable/disable with `DISABLE_HMR`)
-- `Port`: Default 3000 (configured in `package.json`)
-- `Host`: Accessible on network with `--host=0.0.0.0`
-
-### Environment Variables
-
-Create `.env` file for environment-specific configuration:
-
-```env
-VITE_API_URL=https://api.example.com
-VITE_APP_NAME=SERAPHINE COUTURE
-VITE_ENABLE_DEBUG=false
-```
+	```powershell
+	conda run -n seraphine python -m uvicorn --app-dir backend app:app --reload
+	```
 
-Access in code:
-```javascript
-const apiUrl = import.meta.env.VITE_API_URL;
-```
+2. Nama environment Conda berbeda
 
----
+	```powershell
+	$env:CONDA_ENV_NAME="nama-env"
+	npm run dev
+	```
 
-## 📝 Scripts
+3. Tidak memakai Conda
 
-| Script | Purpose |
-|--------|---------|
-| `npm run dev` | Start development server with HMR |
-| `npm run build` | Build for production |
-| `npm run preview` | Preview production build locally |
-| `npm run lint` | Run ESLint code quality check |
-
-### Custom Scripts
-
-Add more scripts in `package.json`:
-
-```json
-{
-  "scripts": {
-    "dev": "vite --port=3000 --host=0.0.0.0",
-    "build": "vite build",
-    "preview": "vite preview",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
-    "type-check": "tsc --noEmit"
-  }
-}
-```
-
----
-
-## 🐛 Troubleshooting
-
-### CSS Not Loading in Development
-
-**Problem**: `tailwindcss: Failed to load resource: 404`
-
-**Solution**:
-1. Ensure `main.js` is properly imported in `index.html`
-2. Check that `style.css` imports Tailwind: `@import "tailwindcss";`
-3. Restart dev server: `npm run dev`
-
-### Icons Not Displaying
+	Gunakan Python aktif:
 
-**Problem**: Lucide icons show as blank squares
+	```powershell
+	$env:USE_CONDA="false"
+	npm run dev
+	```
 
-**Solution**:
-1. Verify Lucide script is loaded: `<script src="https://unpkg.com/lucide@1.7.0"></script>`
-2. Call `window.lucide.createIcons()` after DOM loads
-3. Check browser console for CORS or tracking prevention errors
-4. Use fixed version `@1.7.0` instead of `@latest`
+	Atau gunakan interpreter tertentu:
 
-### Build Fails with TypeScript Errors
+	```powershell
+	$env:BACKEND_PYTHON_CMD="C:\path\to\python.exe"
+	npm run dev
+	```
 
-**Problem**: `vite.config.ts` build error
+## Fitur yang Sudah Ada
 
-**Solution**:
-1. Install TypeScript: `npm install --save-dev typescript`
-2. Create `tsconfig.json`
-3. Or rename `vite.config.ts` to `vite.config.js`
+### Storefront
 
-### HMR Not Working
+- katalog produk dari backend
+- detail produk per size dan color
+- cart dan wishlist berbasis akun login
+- checkout dengan validasi stok backend
+- auto-adjust quantity jika stok kurang
+- riwayat order user
+- invalid session cleanup untuk token kadaluarsa
 
-**Problem**: Changes not reflecting in browser
+### Admin
 
-**Solution**:
-```bash
-DISABLE_HMR=false npm run dev
-```
-
-Or configure in `vite.config.ts`:
-```typescript
-server: {
-  hmr: {
-    host: 'localhost',
-    port: 5173
-  }
-}
-```
+- analytics dashboard operasional
+- quick actions antar modul
+- top products, top clients, dan low-stock alerts
+- CRUD produk live
+- stock editor per varian
+- upload gambar produk ke backend assets
+- daftar dan detail order
+- update status order
+- daftar customer dari backend
 
-### Port Already in Use
-
-**Problem**: Port 3000 already in use
+### Backend
 
-**Solution**:
-```bash
-npm run dev -- --port 3001
-```
+- register dan login user
+- cart dan wishlist API
+- checkout API
+- order serialization untuk storefront dan admin
+- admin products API
+- admin orders API
+- admin customers API
+- static serving untuk gambar di `/assets`
 
----
+## Alur Data Inti
 
-## 🤝 Contributing
+### Produk dan stok
 
-We welcome contributions! Please follow these guidelines:
-
-### Before Starting
-1. Fork the repository
-2. Create a feature branch: `git checkout -b feature/amazing-feature`
-3. Make your changes
-4. Ensure code quality: `npm run lint`
+1. Produk dibuat atau diubah dari admin.
+2. Backend menyimpan data produk ke database.
+3. Storefront memuat produk dari endpoint `/products`.
+4. Stok dihitung dan divalidasi per kombinasi `size + color`.
+5. Saat checkout berhasil, backend mengurangi stok hanya pada varian yang dibeli.
 
-### Code Standards
-- Follow ESLint rules
-- Use meaningful variable/function names
-- Add comments for complex logic
-- Keep components modular and reusable
-- Follow the existing code style
+### Order
 
-### Commit Messages
-Use conventional commits:
-```
-feat: Add new feature
-fix: Fix bug
-docs: Update documentation
-style: Format code
-refactor: Restructure code
-test: Add tests
-```
+1. User login di storefront.
+2. User menambahkan produk ke cart.
+3. Checkout dikirim ke backend.
+4. Backend membuat order dan order items.
+5. Admin melihat order yang sama dari endpoint admin.
 
-### Pull Request Process
-1. Update README if needed
-2. Add/update tests if applicable
-3. Ensure no console errors or warnings
-4. Request review from maintainers
-5. Address feedback and requested changes
+### Gambar produk
 
----
+1. Admin upload gambar dari dashboard.
+2. Backend menyimpan file ke `assets/img`.
+3. URL gambar diserialisasi dari backend.
+4. Storefront dan admin memakai sumber gambar yang sama.
 
-## 📄 License
+## Status dan Batasan Saat Ini
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+- admin login masih demo/local, belum role-based auth dari backend
+- modul `Reports` di admin masih placeholder
+- project memakai MySQL lokal atau server MySQL yang kompatibel
+- file generated seperti `web/dist`, `admin/dist`, dan `web/.vite` bukan source utama project
 
-### MIT License Summary
-- ✅ Commercial use
-- ✅ Modification
-- ✅ Distribution
-- ✅ Private use
-- ❌ Liability
-- ❌ Warranty
+## File dan Folder yang Perlu Diketahui
 
----
+- [package.json](package.json): runner utama root workspace
+- [scripts/run-backend.cjs](scripts/run-backend.cjs): launcher backend lintas-environment
+- [assets/img](assets/img): lokasi file upload gambar produk
+- [backend/database.py](backend/database.py): konfigurasi koneksi database
+- [backend/product_catalog.py](backend/product_catalog.py): helper katalog dan stok varian
 
-## 📞 Support & Contact
+## Catatan Tambahan
 
-- **Report Issues**: [GitHub Issues](https://github.com/yourusername/seraphine-couture/issues)
-- **Feature Requests**: [GitHub Discussions](https://github.com/yourusername/seraphine-couture/discussions)
-- **Email**: support@seraphine-couture.com
+- Base URL API storefront dan admin saat ini mengarah ke `http://localhost:8000`
+- Jika `npm run dev` dari root gagal, biasanya penyebabnya adalah dependency frontend belum di-install, MySQL belum aktif, atau launcher backend tidak menemukan interpreter yang sesuai
+- README ini menggambarkan status project saat ini, bukan struktur lama ketika admin masih mock atau storefront masih berada di root repo
 
----
-
-## 🚀 Roadmap
-
-### Version 1.1.0 (Planned)
-- [ ] API integration with backend
-- [ ] User authentication with JWT
-- [ ] Payment gateway integration
-- [ ] Order management system
-- [ ] Admin dashboard
-
-### Version 1.2.0 (Future)
-- [ ] Product reviews and ratings system
-- [ ] Newsletter subscription
-- [ ] Inventory real-time sync
-- [ ] Advanced search and filters
-- [ ] Multi-language support
-
-### Version 2.0.0 (Long-term)
-- [ ] Mobile app (React Native/Flutter)
-- [ ] Machine learning recommendations
-- [ ] AR try-on feature
-- [ ] Social shopping features
-- [ ] Analytics dashboard
-
----
-
-## 📊 Performance Metrics
-
-- **Bundle Size**: ~150KB (gzipped)
-- **Lighthouse Score**: 95+ (Performance)
-- **First Contentful Paint**: <1.5s
-- **Time to Interactive**: <2.5s
-- **Accessibility Score**: 95+
-
----
-
-## 🎨 Brand Guidelines
-
-### Color Palette
-- **Primary Gold**: `#D4AF37`
-- **Gold Light**: `#F4E4BC`
-- **Gold Dark**: `#996515`
-- **Neutral Black**: `#000000`
-- **Neutral Dark Gray**: `#1a1a1a`
-- **Text Primary**: `#1f2937` (Zinc 900)
-- **Text Secondary**: `#6b7280` (Zinc 500)
-
-### Typography
-- **Serif Font**: Playfair Display (headings)
-- **Sans Serif Font**: Inter (body text)
-
-### Icon Library
-- **Lucide Icons**: Modern, minimal icons
-- **Icon Size**: 20px (standard), 24px (large)
-
----
-
-## 📚 Additional Resources
-
-- [Vite Documentation](https://vitejs.dev/)
-- [Tailwind CSS Documentation](https://tailwindcss.com/)
-- [JavaScript ES6+ Guide](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide)
-- [Lucide Icons](https://lucide.dev/)
-- [Web Performance Tips](https://web.dev/performance/)
-
----
-
-**Made with ❤️ by Eureka,Sergio,Giarda,Setiawan**
-
-Last Updated: April 2, 2026
+Last Updated: April 5, 2026

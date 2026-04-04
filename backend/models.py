@@ -1,9 +1,31 @@
-﻿from sqlalchemy import Column, Integer, String, DateTime, Float, ForeignKey
+﻿from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from datetime import datetime
 
 Base = declarative_base()
+
+
+class Product(Base):
+    __tablename__ = "products"
+
+    id = Column(String(50), primary_key=True, index=True)
+    sku = Column(String(50), unique=True, index=True)
+    name = Column(String(150), nullable=False)
+    category = Column(String(100), nullable=False)
+    description = Column(Text, nullable=False)
+    price = Column(Float, nullable=False)
+    stock = Column(Integer, default=0)
+    images_json = Column(Text, nullable=False)
+    sizes_json = Column(Text, nullable=False)
+    colors_json = Column(Text, nullable=False)
+    variant_stock_json = Column(Text, nullable=False, default='[]')
+    is_featured = Column(Boolean, default=False)
+    is_new = Column(Boolean, default=False)
+    rating = Column(Float, default=0)
+    reviews = Column(Integer, default=0)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 class User(Base):
     __tablename__ = "users"
@@ -27,6 +49,7 @@ class CartItem(Base):
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     product_id = Column(String(50))
     size = Column(String(50), nullable=True)
+    color = Column(String(50), nullable=True)
     quantity = Column(Integer, default=1)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -49,6 +72,10 @@ class Order(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    shipping_first_name = Column(String(50), nullable=True)
+    shipping_last_name = Column(String(50), nullable=True)
+    shipping_address = Column(String(255), nullable=True)
+    payment_last4 = Column(String(4), nullable=True)
     order_date = Column(DateTime, default=datetime.utcnow)
     status = Column(String(20), default="pending")
     total_amount = Column(Float)
@@ -65,6 +92,7 @@ class OrderItem(Base):
     order_id = Column(Integer, ForeignKey("orders.id"), index=True)
     product_id = Column(String(50))
     size = Column(String(50), nullable=True)
+    color = Column(String(50), nullable=True)
     quantity = Column(Integer)
     price = Column(Float)
     created_at = Column(DateTime, default=datetime.utcnow)

@@ -1,6 +1,6 @@
 import './style.css';
-import { PRODUCTS } from './js/data.js';
-import { state, updateCartBadge, restoreState, saveState } from './js/state.js';
+import { getProductById, loadProducts } from './js/data.js';
+import { state, updateCartBadge, restoreState, clearAuthState } from './js/state.js';
 import { Pages } from './js/pages.js';
 import { toggleWishlist, addToCart, removeFromCart, handleLogin, handleRegister, handleCheckout, fetchCart, fetchWishlist, fetchOrders } from './js/logic.js';
 
@@ -9,8 +9,9 @@ export function navigate(page, params = {}) {
     restoreState(); // Restore state sebelum navigasi
     state.currentPage = page;
     if (params.productId) {
-        state.currentProduct = PRODUCTS.find(p => p.id === params.productId);
+        state.currentProduct = getProductById(params.productId);
         state.selectedSize = state.currentProduct?.sizes?.length === 1 ? state.currentProduct.sizes[0] : null;
+        state.selectedColor = state.currentProduct?.colors?.length === 1 ? state.currentProduct.colors[0] : null;
     }
     if (params.category) {
         state.shopCategory = params.category;
@@ -116,6 +117,7 @@ function renderUserMenu() {
 
 // --- Event Listeners ---
 document.addEventListener('DOMContentLoaded', async () => {
+    await loadProducts();
     restoreState();
     if (state.user && state.token) {
         await fetchCart();
@@ -178,14 +180,12 @@ window.selectProductSize = (size) => {
     render();
 };
 
+window.selectProductColor = (color) => {
+    state.selectedColor = color;
+    render();
+};
+
 window.handleLogout = () => {
-    state.user = null;
-    state.token = null;
-    state.selectedSize = null;
-    localStorage.removeItem('seraphine_user');
-    localStorage.removeItem('seraphine_token');
-    state.cart = JSON.parse(localStorage.getItem('seraphine_cart_guest')) || [];
-    state.orders = JSON.parse(localStorage.getItem('seraphine_orders_guest')) || [];
-    saveState();
+    clearAuthState();
     window.navigate('home');
 };

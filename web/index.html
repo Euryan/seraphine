@@ -4,15 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SERAPHINE COUTURE | Premium Fashion</title>
-    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@1.7.0"></script>
 </head>
 <body class="bg-white text-zinc-900 font-sans antialiased overflow-x-hidden">
-    <!-- Navigation -->
     <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-500 py-4 px-6 md:px-12 bg-transparent">
         <div class="max-w-7xl mx-auto flex items-center justify-between">
             <div class="hidden md:flex items-center space-x-8">
@@ -28,9 +25,7 @@
             <div class="flex items-center space-x-4 md:space-x-6">
                 <button class="hover:text-gold transition-colors hidden md:block"><i data-lucide="search" size="20"></i></button>
                 <a href="#" data-link="wishlist" class="hover:text-gold transition-colors hidden md:block"><i data-lucide="heart" size="20"></i></a>
-                <div id="user-menu" class="relative">
-                    <!-- User menu will be rendered here -->
-                </div>
+                <div id="user-menu" class="relative"></div>
                 <a href="#" data-link="cart" class="hover:text-gold transition-colors relative">
                     <i data-lucide="shopping-bag" size="20"></i>
                     <span id="cart-count" class="hidden absolute -top-2 -right-2 bg-gold text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">0</span>
@@ -40,7 +35,6 @@
         </div>
     </nav>
 
-    <!-- Mobile Menu Overlay -->
     <div id="mobile-menu" class="fixed inset-0 bg-white z-[60] flex flex-col p-8 translate-x-full transition-transform duration-500 ease-in-out">
         <div class="flex justify-between items-center mb-12">
             <h2 class="text-xl font-serif font-bold tracking-widest uppercase">Seraphine</h2>
@@ -58,12 +52,10 @@
         </div>
     </div>
 
-    <!-- Main Content Container -->
     <main id="app-content" class="flex-grow min-h-screen">
         <!-- Content will be injected here by main.js -->
     </main>
 
-    <!-- Footer -->
     <footer class="bg-zinc-950 text-white pt-20 pb-10 px-6 md:px-12">
         <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
             <div class="col-span-1 md:col-span-1">
@@ -99,9 +91,6 @@
             <div>
                 <h3 class="text-xs font-bold uppercase tracking-[0.2em] mb-6">Newsletter</h3>
                 <p class="text-zinc-400 text-sm mb-6">Subscribe to receive updates on new collections and exclusive events.</p>
-    </main>
-
-    <script type="module" src="/main.js"></script>
                 <form class="flex border-b border-zinc-800 pb-2">
                     <input type="email" placeholder="Email Address" class="bg-transparent border-none outline-none text-sm w-full placeholder:text-zinc-600">
                     <button type="submit" class="text-xs font-bold uppercase tracking-widest hover:text-gold transition-colors">Join</button>
@@ -118,6 +107,6 @@
         </div>
     </footer>
 
-    <script src="/main.js" type="module"></script>
+    <script src="./main.js" type="module"></script>
 </body>
 </html>

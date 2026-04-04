@@ -1,4 +1,4 @@
-import { PRODUCTS } from './data.js';
+import { PRODUCTS, getVariantStock } from './data.js';
 import { state } from './state.js';
 
 function getSelectedSizeButtonClass(isSelected) {
@@ -179,6 +179,9 @@ export const Pages = {
     product: () => {
         const p = state.currentProduct;
         if (!p) return `<div class="pt-32 text-center">Product not found.</div>`;
+        const activeSize = state.selectedSize || (p.sizes.length === 1 ? p.sizes[0] : null);
+        const activeColor = state.selectedColor || (p.colors.length === 1 ? p.colors[0] : null);
+        const activeStock = getVariantStock(p, activeSize, activeColor);
         return `
             <div class="pt-32 pb-24 px-6 md:px-12 max-w-7xl mx-auto w-full fade-in">
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
@@ -202,6 +205,22 @@ export const Pages = {
                                     `).join('')}
                                 </div>
                                 <p class="text-xs text-zinc-500 mt-4">${state.selectedSize ? `Selected size: ${state.selectedSize}` : 'Choose your size before adding to bag.'}</p>
+                            </div>
+                            <div>
+                                <h3 class="text-xs font-bold uppercase tracking-widest mb-4">Color</h3>
+                                <div class="flex flex-wrap gap-3">
+                                    ${p.colors.map(color => `
+                                        <button
+                                            onclick="window.selectProductColor('${color}')"
+                                            class="px-4 h-12 flex items-center justify-center text-xs font-bold border transition-all ${state.selectedColor === color ? 'border-black bg-black text-white' : 'border-zinc-200 hover:border-black'}"
+                                        >${color}</button>
+                                    `).join('')}
+                                </div>
+                                <p class="text-xs text-zinc-500 mt-4">${state.selectedColor ? `Selected color: ${state.selectedColor}` : 'Choose your color before adding to bag.'}</p>
+                            </div>
+                            <div class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3">
+                                <p class="text-xs font-bold uppercase tracking-widest text-zinc-500">Variant Availability</p>
+                                <p class="mt-2 text-sm ${activeStock > 0 ? 'text-emerald-600' : 'text-red-600'}">${activeStock > 0 ? `${activeStock} items available for this variant` : 'This variant is out of stock'}</p>
                             </div>
                         </div>
                         <button onclick="window.addToCart('${p.id}')" class="w-full py-5 bg-black text-white text-xs font-bold uppercase tracking-[0.2em] hover:bg-zinc-800 transition-all flex items-center justify-center space-x-3">
@@ -240,6 +259,7 @@ export const Pages = {
                             const price = item.price || (product ? product.price : 0);
                             const quantity = item.quantity || 1;
                             const size = item.size || 'Size not set';
+                            const color = item.color || 'Color not set';
                             return `
                             <div class="flex space-x-6 py-8 border-b border-zinc-100">
                                 <div class="w-24 h-32 bg-zinc-100 flex-shrink-0">
@@ -248,6 +268,7 @@ export const Pages = {
                                 <div class="flex-grow">
                                     <h3 class="text-sm font-bold uppercase tracking-widest">${name}</h3>
                                     <p class="text-xs text-zinc-500 mt-1">Size: ${size}</p>
+                                    <p class="text-xs text-zinc-500 mt-1">Color: ${color}</p>
                                     <p class="text-xs text-zinc-500 mt-1">$${price.toLocaleString()} x ${quantity}</p>
                                     <button onclick="window.removeFromCart('${item.id}')" class="text-[10px] uppercase tracking-widest text-zinc-400 hover:text-red-500 mt-4">Remove</button>
                                 </div>
@@ -325,13 +346,14 @@ export const Pages = {
             <h1 class="text-3xl font-serif font-bold mb-12">Checkout</h1>
             <form onsubmit="event.preventDefault(); window.handleCheckout(this)" class="space-y-8">
                 <div class="grid grid-cols-2 gap-6">
-                    <input placeholder="First Name" required class="px-4 py-3 border border-zinc-200 outline-none text-sm">
-                    <input placeholder="Last Name" required class="px-4 py-3 border border-zinc-200 outline-none text-sm">
+                    <input name="firstName" placeholder="First Name" required class="px-4 py-3 border border-zinc-200 outline-none text-sm">
+                    <input name="lastName" placeholder="Last Name" required class="px-4 py-3 border border-zinc-200 outline-none text-sm">
                 </div>
-                <input placeholder="Address" required class="w-full px-4 py-3 border border-zinc-200 outline-none text-sm">
+                <input name="address" placeholder="Address" required class="w-full px-4 py-3 border border-zinc-200 outline-none text-sm">
                 <div class="bg-zinc-50 p-6 space-y-4">
                     <h3 class="text-xs font-bold uppercase tracking-widest">Payment</h3>
-                    <input placeholder="Card Number" required class="w-full px-4 py-3 border border-zinc-200 outline-none text-sm">
+                    <input name="cardNumber" inputmode="numeric" autocomplete="cc-number" placeholder="Card Number" required class="w-full px-4 py-3 border border-zinc-200 outline-none text-sm">
+                    <p class="text-xs text-zinc-500">For this demo, only the last 4 digits are stored with the order.</p>
                 </div>
                 <button type="submit" class="w-full py-5 bg-black text-white text-xs font-bold uppercase tracking-[0.2em]">Complete Purchase</button>
             </form>
@@ -438,10 +460,12 @@ export const Pages = {
                                 <div>
                                     <h3 class="text-lg font-bold">Order #${order.id}</h3>
                                     <p class="text-zinc-500 text-sm">Placed on ${new Date(order.order_date).toLocaleDateString()}</p>
+                                    ${order.shipping_first_name ? `<p class="text-zinc-500 text-sm">Ship to: ${order.shipping_first_name} ${order.shipping_last_name || ''}</p>` : ''}
                                 </div>
                                 <div class="text-right">
                                     <p class="text-sm text-zinc-500">Status: <span class="font-medium text-black">${order.status}</span></p>
                                     <p class="text-lg font-bold">$${order.total_amount.toFixed(2)}</p>
+                                    ${order.payment_last4 ? `<p class="text-zinc-500 text-sm">Card ending ${order.payment_last4}</p>` : ''}
                                 </div>
                             </div>
                             <div class="space-y-4">
@@ -456,6 +480,7 @@ export const Pages = {
                                             <div class="flex-1">
                                                 <h4 class="font-medium">${product ? product.name : 'Product not found'}</h4>
                                                 <p class="text-zinc-500 text-sm">Size: ${size}</p>
+                                                <p class="text-zinc-500 text-sm">Color: ${item.color || '-'}</p>
                                                 <p class="text-zinc-500 text-sm">Quantity: ${item.quantity}</p>
                                             </div>
                                             <div class="text-right">
