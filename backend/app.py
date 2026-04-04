@@ -6,7 +6,7 @@ from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from sqlalchemy import or_
+from sqlalchemy import inspect, or_, text
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from datetime import datetime, timedelta
@@ -26,6 +26,19 @@ app.add_middleware(
 
 # Database setup
 models.Base.metadata.create_all(bind=database.engine)
+
+def ensure_size_columns():
+    inspector = inspect(database.engine)
+    with database.engine.begin() as connection:
+        cart_columns = {column["name"] for column in inspector.get_columns("cart_items")}
+        if "size" not in cart_columns:
+            connection.execute(text("ALTER TABLE cart_items ADD COLUMN size VARCHAR(50) NULL"))
+
+        order_columns = {column["name"] for column in inspector.get_columns("order_items")}
+        if "size" not in order_columns:
+            connection.execute(text("ALTER TABLE order_items ADD COLUMN size VARCHAR(50) NULL"))
+
+ensure_size_columns()
 
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
@@ -123,11 +136,13 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 # --- Pydantic Schemas ---
 class CartItemAdd(BaseModel):
     product_id: str
+    size: str
     quantity: int = 1
 
 class CartItemResponse(BaseModel):
     id: int
     product_id: str
+    size: str | None = None
     quantity: int
     
     class Config:
@@ -145,6 +160,7 @@ class WishlistItemResponse(BaseModel):
 
 class OrderItemRequest(BaseModel):
     product_id: str
+    size: str
     quantity: int
     price: float
 
@@ -167,7 +183,8 @@ def add_to_cart(item: CartItemAdd, current_user: models.User = Depends(get_curre
     # Check if item already in cart
     existing = db.query(models.CartItem).filter(
         models.CartItem.user_id == current_user.id,
-        models.CartItem.product_id == item.product_id
+        models.CartItem.product_id == item.product_id,
+        models.CartItem.size == item.size
     ).first()
     
     if existing:
@@ -176,6 +193,7 @@ def add_to_cart(item: CartItemAdd, current_user: models.User = Depends(get_curre
         cart_item = models.CartItem(
             user_id=current_user.id,
             product_id=item.product_id,
+            size=item.size,
             quantity=item.quantity
         )
         db.add(cart_item)
@@ -186,7 +204,7 @@ def add_to_cart(item: CartItemAdd, current_user: models.User = Depends(get_curre
 @app.get("/cart")
 def get_cart(current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
     items = db.query(models.CartItem).filter(models.CartItem.user_id == current_user.id).all()
-    return [{"id": item.id, "product_id": item.product_id, "quantity": item.quantity} for item in items]
+    return [{"id": item.id, "product_id": item.product_id, "size": item.size, "quantity": item.quantity} for item in items]
 
 @app.delete("/cart/{item_id}")
 def remove_from_cart(item_id: int, current_user: models.User = Depends(get_current_user), db: Session = Depends(database.get_db)):
@@ -266,12 +284,13 @@ def checkout(order_data: OrderCheckout, current_user: models.User = Depends(get_
         order_item = models.OrderItem(
             order_id=order.id,
             product_id=item.product_id,
+            size=item.size,
             quantity=item.quantity,
             price=item.price
         )
         db.add(order_item)
     
-    # Clear cart
+    # Clear cart 
     db.query(models.CartItem).filter(models.CartItem.user_id == current_user.id).delete()
     
     db.commit()
@@ -284,7 +303,7 @@ def get_orders(current_user: models.User = Depends(get_current_user), db: Sessio
     result = []
     for order in orders:
         items = [
-            {"product_id": item.product_id, "quantity": item.quantity, "price": item.price}
+            {"product_id": item.product_id, "size": item.size, "quantity": item.quantity, "price": item.price}
             for item in order.items
         ]
         result.append({
@@ -307,7 +326,7 @@ def get_order(order_id: int, current_user: models.User = Depends(get_current_use
         raise HTTPException(status_code=404, detail="Order not found")
     
     items = [
-        {"product_id": item.product_id, "quantity": item.quantity, "price": item.price}
+        {"product_id": item.product_id, "size": item.size, "quantity": item.quantity, "price": item.price}
         for item in order.items
     ]
     return {

@@ -1,5 +1,5 @@
 import { PRODUCTS } from './data.js';
-import { state, saveState, restoreState } from './state.js';
+import { state, saveState } from './state.js';
 import { render } from '../main.js';
 
 const API_BASE = 'http://localhost:8000';
@@ -25,7 +25,7 @@ async function fetchCart() {
     if (!state.user || !state.token) return;
     try {
         const items = await apiJson(`${API_BASE}/cart`);
-        state.cart = items.map(item => ({ id: item.id, product_id: item.product_id, quantity: item.quantity }));
+        state.cart = items.map(item => ({ id: item.id, product_id: item.product_id, quantity: item.quantity, size: item.size }));
         saveState();
         render();
     } catch (err) {
@@ -84,10 +84,17 @@ export async function addToCart(productId) {
     const product = PRODUCTS.find(p => p.id === productId);
     if (!product) return;
 
+    const selectedSize = state.selectedSize || (product.sizes.length === 1 ? product.sizes[0] : null);
+    if (!selectedSize) {
+        alert('Pilih size terlebih dahulu sebelum menambahkan ke bag');
+        return;
+    }
+
     if (!state.user || !state.token) {
-        const existing = state.cart.find(item => item.product_id === productId);
+        const existing = state.cart.find(item => item.product_id === productId && item.size === selectedSize);
         if (existing) existing.quantity++;
-        else state.cart.push({ id: Date.now(), product_id: productId, quantity: 1 });
+        else state.cart.push({ id: Date.now(), product_id: productId, quantity: 1, size: selectedSize });
+        state.selectedSize = null;
         saveState();
         alert('Added to bag');
         render();
@@ -95,7 +102,8 @@ export async function addToCart(productId) {
     }
 
     try {
-        await apiJson(`${API_BASE}/cart/add`, { method: 'POST', body: JSON.stringify({ product_id: productId, quantity: 1 }) });
+        await apiJson(`${API_BASE}/cart/add`, { method: 'POST', body: JSON.stringify({ product_id: productId, quantity: 1, size: selectedSize }) });
+        state.selectedSize = null;
         await fetchCart();
         alert('Added to bag');
     } catch (err) {
@@ -134,9 +142,12 @@ export async function handleRegister(form) {
 
         state.user = { username, email };
         state.token = data.access_token;
+        state.cart = [];
+        state.orders = [];
         saveState();
         await fetchCart();
         await fetchWishlist();
+        await fetchOrders();
         render();
         window.navigate('home');
     } catch (err) {
@@ -166,9 +177,12 @@ export async function handleLogin(form) {
 
         state.user = { username };
         state.token = data.access_token;
+        state.cart = [];
+        state.orders = [];
         saveState();
         await fetchCart();
         await fetchWishlist();
+        await fetchOrders();
         render();
         window.navigate('home');
     } catch (err) {
@@ -176,7 +190,7 @@ export async function handleLogin(form) {
     }
 }
 
-export async function handleCheckout(form) {
+export async function handleCheckout() {
     if (!state.user || !state.token) {
         // guest checkout fallback
         const orderId = Math.random().toString(36).substr(2, 9).toUpperCase();
@@ -187,6 +201,12 @@ export async function handleCheckout(form) {
         return;
     }
 
+    const itemWithoutSize = state.cart.find(item => !item.size);
+    if (itemWithoutSize) {
+        alert('Ada item di bag yang belum memiliki size. Hapus lalu pilih size yang benar sebelum checkout.');
+        return;
+    }
+
     try {
         const payload = {
             items: state.cart.map(item => {
@@ -194,6 +214,7 @@ export async function handleCheckout(form) {
                 console.log('Item:', item, 'Product found:', product);
                 return {
                     product_id: item.product_id,
+                    size: item.size,
                     quantity: item.quantity,
                     price: product ? product.price : 0
                 };

@@ -1,6 +1,12 @@
 import { PRODUCTS } from './data.js';
 import { state } from './state.js';
 
+function getSelectedSizeButtonClass(isSelected) {
+    return isSelected
+        ? 'border-black bg-black text-white'
+        : 'border-zinc-200 hover:border-black';
+}
+
 function renderProductCard(productData) {
     const product = productData.product_id ? PRODUCTS.find(p => p.id === productData.product_id) : PRODUCTS.find(p => p.id === productData.id) || productData;
     if (!product) {
@@ -188,8 +194,14 @@ export const Pages = {
                             <div>
                                 <h3 class="text-xs font-bold uppercase tracking-widest mb-4">Size</h3>
                                 <div class="flex flex-wrap gap-3">
-                                    ${p.sizes.map(s => `<button class="w-12 h-12 flex items-center justify-center text-xs font-bold border border-zinc-200 hover:border-black transition-all">${s}</button>`).join('')}
+                                    ${p.sizes.map(s => `
+                                        <button
+                                            onclick="window.selectProductSize('${s}')"
+                                            class="w-12 h-12 flex items-center justify-center text-xs font-bold border transition-all ${getSelectedSizeButtonClass(state.selectedSize === s)}"
+                                        >${s}</button>
+                                    `).join('')}
                                 </div>
+                                <p class="text-xs text-zinc-500 mt-4">${state.selectedSize ? `Selected size: ${state.selectedSize}` : 'Choose your size before adding to bag.'}</p>
                             </div>
                         </div>
                         <button onclick="window.addToCart('${p.id}')" class="w-full py-5 bg-black text-white text-xs font-bold uppercase tracking-[0.2em] hover:bg-zinc-800 transition-all flex items-center justify-center space-x-3">
@@ -227,6 +239,7 @@ export const Pages = {
                             const name = product ? product.name : (item.name || 'Unknown Product');
                             const price = item.price || (product ? product.price : 0);
                             const quantity = item.quantity || 1;
+                            const size = item.size || 'Size not set';
                             return `
                             <div class="flex space-x-6 py-8 border-b border-zinc-100">
                                 <div class="w-24 h-32 bg-zinc-100 flex-shrink-0">
@@ -234,6 +247,7 @@ export const Pages = {
                                 </div>
                                 <div class="flex-grow">
                                     <h3 class="text-sm font-bold uppercase tracking-widest">${name}</h3>
+                                    <p class="text-xs text-zinc-500 mt-1">Size: ${size}</p>
                                     <p class="text-xs text-zinc-500 mt-1">$${price.toLocaleString()} x ${quantity}</p>
                                     <button onclick="window.removeFromCart('${item.id}')" class="text-[10px] uppercase tracking-widest text-zinc-400 hover:text-red-500 mt-4">Remove</button>
                                 </div>
@@ -433,6 +447,7 @@ export const Pages = {
                             <div class="space-y-4">
                                 ${order.items.map(item => {
                                     const product = PRODUCTS.find(p => p.id === item.product_id);
+                                    const size = item.size || 'Size not set';
                                     return `
                                         <div class="flex items-center space-x-4 py-4 border-b border-zinc-50 last:border-b-0">
                                             <div class="w-16 h-16 bg-zinc-100 rounded-lg overflow-hidden flex-shrink-0">
@@ -440,6 +455,7 @@ export const Pages = {
                                             </div>
                                             <div class="flex-1">
                                                 <h4 class="font-medium">${product ? product.name : 'Product not found'}</h4>
+                                                <p class="text-zinc-500 text-sm">Size: ${size}</p>
                                                 <p class="text-zinc-500 text-sm">Quantity: ${item.quantity}</p>
                                             </div>
                                             <div class="text-right">

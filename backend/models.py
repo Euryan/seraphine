@@ -26,6 +26,7 @@ class CartItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), index=True)
     product_id = Column(String(50))
+    size = Column(String(50), nullable=True)
     quantity = Column(Integer, default=1)
     created_at = Column(DateTime, default=datetime.utcnow)
 
@@ -63,6 +64,7 @@ class OrderItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(Integer, ForeignKey("orders.id"), index=True)
     product_id = Column(String(50))
+    size = Column(String(50), nullable=True)
     quantity = Column(Integer)
     price = Column(Float)
     created_at = Column(DateTime, default=datetime.utcnow)

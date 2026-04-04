@@ -10,6 +10,7 @@ export function navigate(page, params = {}) {
     state.currentPage = page;
     if (params.productId) {
         state.currentProduct = PRODUCTS.find(p => p.id === params.productId);
+        state.selectedSize = state.currentProduct?.sizes?.length === 1 ? state.currentProduct.sizes[0] : null;
     }
     if (params.category) {
         state.shopCategory = params.category;
@@ -172,13 +173,19 @@ window.removeFromCart = removeFromCart;
 window.handleLogin = handleLogin;
 window.handleRegister = handleRegister;
 window.handleCheckout = handleCheckout;
+window.selectProductSize = (size) => {
+    state.selectedSize = size;
+    render();
+};
 
 window.handleLogout = () => {
     state.user = null;
     state.token = null;
+    state.selectedSize = null;
     localStorage.removeItem('seraphine_user');
     localStorage.removeItem('seraphine_token');
     state.cart = JSON.parse(localStorage.getItem('seraphine_cart_guest')) || [];
+    state.orders = JSON.parse(localStorage.getItem('seraphine_orders_guest')) || [];
     saveState();
     window.navigate('home');
 };
