@@ -4,6 +4,24 @@ import { state, updateCartBadge, restoreState, clearAuthState } from './js/state
 import { Pages } from './js/pages.js';
 import { toggleWishlist, addToCart, removeFromCart, handleLogin, handleRegister, handleCheckout, fetchCart, fetchWishlist, fetchOrders } from './js/logic.js';
 
+function getAdminUrl() {
+    const { protocol, hostname, port, origin } = window.location;
+    const isLocalHost = hostname === 'localhost' || hostname === '127.0.0.1';
+
+    if (isLocalHost && port === '4173') {
+        return `${protocol}//${hostname}:3101/`;
+    }
+
+    return `${origin}/control-room/`;
+}
+
+function syncAdminLinks() {
+    const adminUrl = getAdminUrl();
+    document.querySelectorAll('[data-admin-link]').forEach((link) => {
+        link.setAttribute('href', adminUrl);
+    });
+}
+
 // --- Router ---
 export function navigate(page, params = {}) {
     restoreState(); // Restore state sebelum navigasi
@@ -34,6 +52,7 @@ export function render() {
 
     // Render User Menu
     renderUserMenu();
+    syncAdminLinks();
 
     // Update Navbar Style
     const nav = document.getElementById('navbar');

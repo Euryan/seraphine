@@ -12,6 +12,8 @@ import { renderProducts } from './modules/products.js';
 import { renderOrders } from './modules/orders.js';
 import { renderCustomers } from './modules/customers.js';
 import { renderSettings } from './modules/settings.js';
+import { renderCustomerService } from './modules/customer-service.js';
+import { authenticateAdmin } from './modules/data.js';
 
 // Initialize Database
 db.init();
@@ -24,6 +26,7 @@ const routes = {
   products: renderProducts,
   orders: renderOrders,
   customers: renderCustomers,
+  'customer-service': renderCustomerService,
   settings: renderSettings,
   reports: (container) => {
     container.innerHTML = `
@@ -106,35 +109,43 @@ function renderLogin() {
           
           <div class="text-center">
             <p class="text-xs text-zinc-400">Demo Credentials: admin@seraphine.com / password</p>
-            <p class="text-[11px] text-zinc-400 mt-2">Inventory, orders, and clienteling data below now mirror the Seraphine storefront catalog.</p>
+            <p class="text-[11px] text-zinc-400 mt-2">Akun tambahan juga bisa dibuat dari menu Customer Service setelah login.</p>
           </div>
         </div>
       </div>
     </div>
   `;
 
-  document.getElementById('login-btn')?.addEventListener('click', () => {
-    const email = document.getElementById('login-email').value;
+  document.getElementById('login-btn')?.addEventListener('click', async () => {
+    const email = document.getElementById('login-email').value.trim();
     const pass = document.getElementById('login-password').value;
-    
-    if (email === 'admin@seraphine.com' && pass === 'password') {
-      db.set('session', { user: 'Admin', email });
-      toast.show('Welcome back, Admin', 'success');
+
+    try {
+      const account = await authenticateAdmin(email, pass);
+      db.set('session', {
+        user: account.name,
+        email: account.email,
+        role: account.role,
+        source: account.source,
+      });
+      toast.show(`Welcome back, ${account.name}`, 'success');
       init();
-    } else {
-      toast.show('Invalid credentials', 'error');
+    } catch (error) {
+      toast.show(error.message || 'Invalid credentials', 'error');
     }
   });
 }
 
 function renderLayout() {
   const settings = getSettings();
+  const session = db.get('session', null) || { user: 'Admin User', email: 'admin@seraphine.com', role: 'Commerce Operations' };
+  const initials = String(session.user || 'AD').split(' ').filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
   app.innerHTML = `
     <div class="min-h-screen bg-white text-zinc-600 flex overflow-hidden">
       <!-- Sidebar -->
       <aside id="sidebar" class="w-64 bg-zinc-50 border-r border-zinc-200 flex flex-col transition-all duration-300 relative z-50">
         <div class="p-6 flex items-center gap-4 border-b border-zinc-200">
-          <div class="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white font-black text-lg shrink-0">${getBrandMonogram()}</div>
+        <div class="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white font-black text-lg shrink-0">${getBrandMonogram()}</div>
           <span class="font-black tracking-tighter text-black text-xl sidebar-label">${settings.storeName}</span>
         </div>
         
@@ -145,6 +156,7 @@ function renderLayout() {
           ${renderNavItem('customers', 'Customers', icons.customers)}
           ${renderNavItem('reports', 'Reports', icons.reports)}
           <div class="pt-8 pb-2 px-4 text-[10px] font-bold text-zinc-400 uppercase tracking-widest sidebar-label">System</div>
+          ${renderNavItem('customer-service', 'Customer Service', icons.customerService)}
           ${renderNavItem('settings', 'Settings', icons.settings)}
         </nav>
         
@@ -179,11 +191,11 @@ function renderLayout() {
             <div class="h-8 w-px bg-zinc-200"></div>
             <div class="flex items-center gap-3">
               <div class="text-right hidden sm:block">
-                <p class="text-xs font-bold text-black">Admin User</p>
-                <p class="text-[10px] text-zinc-400">Commerce Operations</p>
+                <p class="text-xs font-bold text-black">${session.user}</p>
+                <p class="text-[10px] text-zinc-400">${session.role || 'Commerce Operations'}</p>
               </div>
               <div class="w-10 h-10 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-500 font-bold text-xs">
-                AD
+                ${initials || 'AD'}
               </div>
             </div>
           </div>

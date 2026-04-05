@@ -42,6 +42,19 @@ class User(Base):
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")
 
 
+class AdminAccessAccount(Base):
+    __tablename__ = "admin_access_accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(100), nullable=False)
+    email = Column(String(100), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(128), nullable=False)
+    role = Column(String(50), default="Customer Service")
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class CartItem(Base):
     __tablename__ = "cart_items"
 

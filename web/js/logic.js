@@ -1,8 +1,7 @@
 import { getProductById, getVariantStock, loadProducts } from './data.js';
+import { API_BASE } from './config.js';
 import { state, saveState, clearAuthState, setPendingAuthAction, clearPendingAuthAction } from './state.js';
 import { render } from '../main.js';
-
-const API_BASE = 'http://localhost:8000';
 
 function getNoticeContainer() {
     let container = document.getElementById('seraphine-notice-container');

@@ -10,6 +10,7 @@ import { toast, modal } from './ui.js';
 export const renderSettings = (container) => {
   const settings = db.get('settings', { storeName: 'Seraphine Couture', storeEmail: 'atelier@seraphine.com', logo: '', address: '', theme: 'light' });
   const currentTheme = db.get('theme', 'light');
+  const session = db.get('session', null);
   
   container.innerHTML = `
     <div class="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -94,8 +95,8 @@ export const renderSettings = (container) => {
                 ${icons.customers}
               </div>
               <div class="text-center space-y-1">
-                <p class="text-lg font-bold text-black">Admin User</p>
-                <p class="text-sm text-zinc-400">admin@seraphine.com</p>
+                <p class="text-lg font-bold text-black">${session?.user || 'Admin User'}</p>
+                <p class="text-sm text-zinc-400">${session?.email || 'admin@seraphine.com'}</p>
               </div>
             </div>
             <button class="w-full py-2 text-sm font-medium bg-zinc-100 hover:bg-zinc-200 text-black rounded-lg transition-all border border-zinc-200">

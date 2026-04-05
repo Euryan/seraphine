@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fastapi import FastAPI, Depends, File, HTTPException, Request, UploadFile, status
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.staticfiles import StaticFiles
@@ -21,23 +22,69 @@ import database
 import product_catalog
 from pydantic import BaseModel
 
+DEMO_ADMIN_ACCOUNT = {
+    "id": "demo-admin",
+    "name": "Admin User",
+    "email": "admin@seraphine.com",
+    "password": "password",
+    "role": "Super Admin",
+    "active": True,
+    "source": "demo",
+}
+
 ROOT_DIR = Path(__file__).resolve().parent.parent
 ASSETS_DIR = ROOT_DIR / "assets"
 IMAGE_UPLOAD_DIR = ASSETS_DIR / "img"
+WEB_DIST_DIR = ROOT_DIR / "web" / "dist"
+WEB_DIST_ASSETS_DIR = WEB_DIST_DIR / "web-assets"
+WEB_INDEX_FILE = WEB_DIST_DIR / "index.html"
+ADMIN_DIST_DIR = ROOT_DIR / "admin" / "dist"
+ADMIN_INDEX_FILE = ADMIN_DIST_DIR / "index.html"
+ADMIN_PUBLIC_PATH = "control-room"
 IMAGE_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
 
+
+def parse_csv_env(value: str | None):
+    return [item.strip() for item in (value or '').split(',') if item.strip()]
+
+
+default_cors_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:3101",
+    "http://127.0.0.1:5500",
+    "http://localhost:5500",
+]
+extra_cors_origins = parse_csv_env(os.getenv("CORS_ALLOWED_ORIGINS"))
+cors_origin_regex = os.getenv(
+    "CORS_ALLOWED_ORIGIN_REGEX",
+    r"https?://((localhost|127\.0\.0\.1)(:\d+)?|([a-z0-9-]+\.)?(ngrok-free\.app|ngrok\.app|ngrok-free\.dev))$",
+)
+
 app = FastAPI()
 app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
+if WEB_DIST_ASSETS_DIR.exists():
+    app.mount("/web-assets", StaticFiles(directory=str(WEB_DIST_ASSETS_DIR)), name="web-assets")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5500", "http://localhost:5500"],
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+    allow_origins=[*default_cors_origins, *extra_cors_origins],
+    allow_origin_regex=cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def support_api_prefixed_routes(request: Request, call_next):
+    path = request.scope.get("path", "")
+    if path == "/api":
+        request.scope["path"] = "/"
+    elif path.startswith("/api/"):
+        request.scope["path"] = path[4:] or "/"
+    return await call_next(request)
 
 # Database setup
 models.Base.metadata.create_all(bind=database.engine)
@@ -95,6 +142,27 @@ class Token(BaseModel):
     token_type: str
 
 
+class AdminLoginPayload(BaseModel):
+    email: str
+    password: str
+
+
+class AdminAccessAccountPayload(BaseModel):
+    name: str
+    email: str
+    password: str
+    role: str = "Customer Service"
+    active: bool = True
+
+
+class AdminAccessAccountUpdatePayload(BaseModel):
+    name: str
+    email: str
+    password: str | None = None
+    role: str = "Customer Service"
+    active: bool = True
+
+
 class VariantStockPayload(BaseModel):
     size: str | None = None
     color: str | None = None
@@ -146,6 +214,64 @@ def get_user(db: Session, username: str):
     return db.query(models.User).filter(
         or_(models.User.username == username, models.User.email == username)
     ).first()
+
+
+def normalize_email(email: str):
+    return str(email or "").strip().lower()
+
+
+def serialize_admin_access_account(account: models.AdminAccessAccount):
+    return {
+        "id": str(account.id),
+        "name": account.name,
+        "email": account.email,
+        "role": account.role,
+        "active": account.is_active,
+        "createdAt": account.created_at.isoformat() if account.created_at else None,
+        "updatedAt": account.updated_at.isoformat() if account.updated_at else None,
+        "source": "database",
+    }
+
+
+def serialize_demo_admin_account():
+    return {
+        "id": DEMO_ADMIN_ACCOUNT["id"],
+        "name": DEMO_ADMIN_ACCOUNT["name"],
+        "email": DEMO_ADMIN_ACCOUNT["email"],
+        "role": DEMO_ADMIN_ACCOUNT["role"],
+        "active": DEMO_ADMIN_ACCOUNT["active"],
+        "createdAt": None,
+        "updatedAt": None,
+        "source": DEMO_ADMIN_ACCOUNT["source"],
+        "isFixed": True,
+        "passwordHint": DEMO_ADMIN_ACCOUNT["password"],
+    }
+
+
+def get_admin_access_account_by_email(db: Session, email: str):
+    normalized_email = normalize_email(email)
+    return db.query(models.AdminAccessAccount).filter(models.AdminAccessAccount.email == normalized_email).first()
+
+
+def get_admin_access_account_by_id(db: Session, account_id: str):
+    if not str(account_id).isdigit():
+        return None
+    return db.query(models.AdminAccessAccount).filter(models.AdminAccessAccount.id == int(account_id)).first()
+
+
+def authenticate_admin_access_account(db: Session, email: str, password: str):
+    normalized_email = normalize_email(email)
+    plain_password = str(password or "")
+
+    if normalized_email == DEMO_ADMIN_ACCOUNT["email"] and plain_password == DEMO_ADMIN_ACCOUNT["password"]:
+        return serialize_demo_admin_account()
+
+    account = get_admin_access_account_by_email(db, normalized_email)
+    if not account or not account.is_active:
+        return None
+    if not verify_password(plain_password, account.hashed_password):
+        return None
+    return serialize_admin_access_account(account)
 
 def authenticate_user(db: Session, username: str, password: str):
     user = get_user(db, username)
@@ -247,7 +373,55 @@ def sanitize_filename(filename: str):
     extension = Path(filename).suffix.lower()
     return stem, extension
 
+
+def should_serve_storefront(path: str):
+    protected_prefixes = (
+        "auth",
+        "admin",
+        ADMIN_PUBLIC_PATH,
+        "products",
+        "cart",
+        "wishlist",
+        "orders",
+        "assets",
+        "web-assets",
+        "docs",
+        "redoc",
+        "openapi.json",
+    )
+    return not any(path == prefix or path.startswith(f"{prefix}/") for prefix in protected_prefixes)
+
 # Routes
+@app.get("/", include_in_schema=False)
+def serve_storefront_root():
+    if WEB_INDEX_FILE.exists():
+        return FileResponse(str(WEB_INDEX_FILE))
+    raise HTTPException(status_code=404, detail="Storefront build not found")
+
+
+@app.get(f"/{ADMIN_PUBLIC_PATH}", include_in_schema=False)
+def serve_admin_root():
+    if ADMIN_INDEX_FILE.exists():
+        return FileResponse(str(ADMIN_INDEX_FILE))
+    raise HTTPException(status_code=404, detail="Admin build not found")
+
+
+@app.get(f"/{ADMIN_PUBLIC_PATH}/{{full_path:path}}", include_in_schema=False)
+def serve_admin_app(full_path: str):
+    normalized_path = (full_path or "").strip("/")
+    if not normalized_path:
+        return serve_admin_root()
+
+    target_file = ADMIN_DIST_DIR / normalized_path
+    if target_file.exists() and target_file.is_file():
+        return FileResponse(str(target_file))
+
+    if ADMIN_INDEX_FILE.exists():
+        return FileResponse(str(ADMIN_INDEX_FILE))
+
+    raise HTTPException(status_code=404, detail="Admin build not found")
+
+
 @app.get("/products")
 def get_products(db: Session = Depends(database.get_db)):
     return [product_catalog.serialize_product(product) for product in product_catalog.list_products(db)]
@@ -288,6 +462,93 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@app.post("/admin/auth/login")
+def admin_login(payload: AdminLoginPayload, db: Session = Depends(database.get_db)):
+    account = authenticate_admin_access_account(db, payload.email, payload.password)
+    if not account:
+        raise HTTPException(status_code=401, detail="Invalid admin credentials")
+    return account
+
+
+@app.get("/admin/access-accounts")
+def admin_get_access_accounts(db: Session = Depends(database.get_db)):
+    accounts = db.query(models.AdminAccessAccount).order_by(desc(models.AdminAccessAccount.created_at)).all()
+    return [serialize_demo_admin_account(), *[serialize_admin_access_account(account) for account in accounts]]
+
+
+@app.post("/admin/access-accounts")
+def admin_create_access_account(payload: AdminAccessAccountPayload, db: Session = Depends(database.get_db)):
+    normalized_email = normalize_email(payload.email)
+    normalized_name = payload.name.strip()
+    if not normalized_email:
+        raise HTTPException(status_code=400, detail="Email wajib diisi")
+    if not normalized_name:
+        raise HTTPException(status_code=400, detail="Nama akun wajib diisi")
+    if normalized_email == DEMO_ADMIN_ACCOUNT["email"]:
+        raise HTTPException(status_code=400, detail="Email demo bawaan sudah dipakai sistem")
+    if get_admin_access_account_by_email(db, normalized_email):
+        raise HTTPException(status_code=400, detail="Email akun sudah terdaftar")
+    if len(payload.password or "") < 4:
+        raise HTTPException(status_code=400, detail="Password minimal 4 karakter")
+
+    account = models.AdminAccessAccount(
+        name=normalized_name,
+        email=normalized_email,
+        hashed_password=get_password_hash(payload.password),
+        role=payload.role.strip() or "Customer Service",
+        is_active=payload.active,
+    )
+    db.add(account)
+    db.commit()
+    db.refresh(account)
+    return serialize_admin_access_account(account)
+
+
+@app.put("/admin/access-accounts/{account_id}")
+def admin_update_access_account(account_id: str, payload: AdminAccessAccountUpdatePayload, db: Session = Depends(database.get_db)):
+    account = get_admin_access_account_by_id(db, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Akun tidak ditemukan")
+
+    normalized_email = normalize_email(payload.email)
+    normalized_name = payload.name.strip()
+    if not normalized_email:
+        raise HTTPException(status_code=400, detail="Email wajib diisi")
+    if not normalized_name:
+        raise HTTPException(status_code=400, detail="Nama akun wajib diisi")
+    if normalized_email == DEMO_ADMIN_ACCOUNT["email"]:
+        raise HTTPException(status_code=400, detail="Email demo bawaan tidak bisa dipakai ulang")
+
+    existing_account = get_admin_access_account_by_email(db, normalized_email)
+    if existing_account and existing_account.id != account.id:
+        raise HTTPException(status_code=400, detail="Email akun sudah terdaftar")
+
+    account.name = normalized_name
+    account.email = normalized_email
+    account.role = payload.role.strip() or "Customer Service"
+    account.is_active = payload.active
+
+    next_password = str(payload.password or "").strip()
+    if next_password:
+        if len(next_password) < 4:
+            raise HTTPException(status_code=400, detail="Password minimal 4 karakter")
+        account.hashed_password = get_password_hash(next_password)
+
+    db.commit()
+    db.refresh(account)
+    return serialize_admin_access_account(account)
+
+
+@app.delete("/admin/access-accounts/{account_id}")
+def admin_delete_access_account(account_id: str, db: Session = Depends(database.get_db)):
+    account = get_admin_access_account_by_id(db, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Akun tidak ditemukan")
+    db.delete(account)
+    db.commit()
+    return {"message": "Access account deleted"}
 
 
 # --- Helper: Get Current User from Token ---
@@ -695,3 +956,22 @@ def admin_update_order_status(order_id: int, payload: OrderStatusUpdate, db: Ses
 def admin_get_customers(db: Session = Depends(database.get_db)):
     users = db.query(models.User).order_by(desc(models.User.created_at)).all()
     return [serialize_customer(user) for user in users]
+
+
+@app.get("/{full_path:path}", include_in_schema=False)
+def serve_storefront_app(full_path: str):
+    normalized_path = (full_path or "").strip("/")
+    if not normalized_path:
+        return serve_storefront_root()
+
+    target_file = WEB_DIST_DIR / normalized_path
+    if target_file.exists() and target_file.is_file():
+        return FileResponse(str(target_file))
+
+    if not should_serve_storefront(normalized_path):
+        raise HTTPException(status_code=404, detail="Not Found")
+
+    if WEB_INDEX_FILE.exists():
+        return FileResponse(str(WEB_INDEX_FILE))
+
+    raise HTTPException(status_code=404, detail="Storefront build not found")

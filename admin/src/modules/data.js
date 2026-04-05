@@ -3,8 +3,9 @@
  * Keeps UI/session preferences in localStorage and uses backend API for products, orders, and customers.
  */
 
+import { API_BASE } from './config.js';
+
 const STORAGE_PREFIX = 'seraphine_admin';
-const API_BASE = 'http://localhost:8000';
 
 function storageKey(key) {
   return `${STORAGE_PREFIX}_${key}`;
@@ -69,6 +70,37 @@ export const db = {
     window.location.reload();
   }
 };
+
+export async function authenticateAdmin(email, password) {
+  return apiJson('/admin/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export async function fetchAccessAccounts() {
+  return apiJson('/admin/access-accounts');
+}
+
+export async function createAccessAccount(payload) {
+  return apiJson('/admin/access-accounts', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAccessAccount(accountId, payload) {
+  return apiJson(`/admin/access-accounts/${accountId}`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteAccessAccount(accountId) {
+  return apiJson(`/admin/access-accounts/${accountId}`, {
+    method: 'DELETE',
+  });
+}
 
 export async function fetchProducts() {
   const products = await apiJson('/admin/products');

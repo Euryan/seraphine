@@ -89,7 +89,7 @@ Fitur utama admin saat ini:
 
 Catatan penting:
 
-- login admin saat ini masih bersifat demo/local di sisi frontend admin
+- login admin sekarang mendukung akun database-backed untuk Customer Service/Admin Access, dengan credential demo bawaan tetap aktif sebagai fallback
 - data dashboard, produk, order, dan customer sudah live ke backend
 
 File penting:
@@ -211,6 +211,109 @@ cd admin
 npm install
 npm run dev
 ```
+
+## Akses Publik Dengan Ngrok
+
+Project ini sekarang sudah siap dipakai dengan ngrok, tetapi ada dua syarat teknis penting:
+
+1. frontend web/admin tidak boleh hardcode API ke `localhost`
+2. backend harus menerima origin publik dari domain ngrok
+
+Kedua hal tersebut sudah disiapkan di source saat ini.
+
+### File Konfigurasi yang Dipakai
+
+- [web/.env.example](web/.env.example)
+- [admin/.env.example](admin/.env.example)
+- [web/js/config.js](web/js/config.js)
+- [admin/src/modules/config.js](admin/src/modules/config.js)
+- [backend/app.py](backend/app.py)
+
+### Skenario Paling Umum
+
+Kalau Anda ingin teman membuka storefront dan backend dari internet, biasanya Anda butuh minimal dua tunnel:
+
+1. tunnel untuk web `3000`
+2. tunnel untuk backend `8000`
+
+Kalau admin juga ingin diakses dari luar, buat tunnel ketiga untuk `3101`.
+
+### Langkah Setup Ngrok
+
+#### 1. Jalankan backend, web, dan admin seperti biasa
+
+```powershell
+npm run dev
+```
+
+Atau jalankan satu-satu jika Anda lebih mudah mengontrol prosesnya.
+
+#### 2. Buat tunnel backend
+
+```powershell
+ngrok http 8000
+```
+
+Contoh hasil URL publik backend:
+
+```text
+https://abc123.ngrok-free.app
+```
+
+#### 3. Atur frontend agar memakai URL backend publik
+
+Untuk storefront web, buat file `web/.env.local` dengan isi seperti ini:
+
+```env
+VITE_API_BASE_URL=https://abc123.ngrok-free.app
+```
+
+Untuk admin, buat file `admin/.env.local` dengan isi seperti ini:
+
+```env
+VITE_API_BASE_URL=https://abc123.ngrok-free.app
+```
+
+Catatan: setelah mengubah file `.env.local`, restart server Vite web dan admin agar environment baru terbaca.
+
+#### 4. Buat tunnel untuk frontend yang ingin dibagikan
+
+Storefront web:
+
+```powershell
+ngrok http 3000
+```
+
+Admin dashboard:
+
+```powershell
+ngrok http 3101
+```
+
+#### 5. Bagikan URL frontend ke teman Anda
+
+- bagikan URL tunnel `3000` untuk storefront customer
+- bagikan URL tunnel `3101` jika admin juga perlu dibuka dari luar
+
+### Environment Backend Untuk Origin Tambahan
+
+Backend sudah otomatis menerima domain localhost dan domain ngrok umum. Jika Anda ingin menambahkan origin publik lain, gunakan:
+
+```powershell
+$env:CORS_ALLOWED_ORIGINS="https://frontend-anda.com,https://admin-anda.com"
+```
+
+Jika perlu regex khusus untuk origin publik, gunakan:
+
+```powershell
+$env:CORS_ALLOWED_ORIGIN_REGEX="https?://([a-z0-9-]+\.)?domain-anda\.com$"
+```
+
+### Rekomendasi Praktis
+
+1. Untuk demo teman yang hanya ingin mencoba belanja, cukup buka tunnel backend `8000` dan web `3000`.
+2. Untuk review internal tim admin, tambahkan tunnel admin `3101`.
+3. Jangan bagikan URL admin ke publik luas karena autentikasi admin saat ini belum hardened sepenuhnya di backend.
 
 ## Konfigurasi Launcher Backend Root
 

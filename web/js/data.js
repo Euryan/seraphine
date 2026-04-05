@@ -1,4 +1,4 @@
-const API_BASE = 'http://localhost:8000';
+import { API_BASE } from './config.js';
 
 const FALLBACK_PRODUCTS = [
     {
@@ -153,10 +153,28 @@ function buildVariantStocks(product) {
 }
 
 function normalizeProduct(product) {
+    const normalizeImageUrl = (imageUrl) => {
+        if (!imageUrl) return imageUrl;
+        if (String(imageUrl).startsWith('/assets/')) return imageUrl;
+
+        try {
+            const parsed = new URL(imageUrl, window.location.origin);
+            if (parsed.pathname.startsWith('/assets/')) {
+                return parsed.pathname;
+            }
+        } catch {
+            return imageUrl;
+        }
+
+        return imageUrl;
+    };
+
+    const images = (Array.isArray(product.images) ? product.images : []).map(normalizeImageUrl);
     return {
         ...product,
         id: String(product.id),
-        images: Array.isArray(product.images) ? product.images : [],
+        images,
+        image: normalizeImageUrl(product.image) || images[0] || '',
         sizes: Array.isArray(product.sizes) ? product.sizes : [],
         colors: Array.isArray(product.colors) ? product.colors : [],
         variantStocks: buildVariantStocks(product),
