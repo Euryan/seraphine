@@ -10,38 +10,42 @@
     <script src="https://unpkg.com/lucide@1.7.0"></script>
 </head>
 <body class="bg-white text-zinc-900 font-sans antialiased overflow-x-hidden">
-    <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-500 py-4 px-6 md:px-12 bg-transparent">
-        <div class="max-w-7xl mx-auto flex items-center justify-between">
-            <div class="hidden md:flex items-center space-x-8">
+    <nav id="navbar" class="fixed top-0 left-0 right-0 z-50 transition-all duration-500 py-4 px-4 sm:px-6 md:px-12 bg-transparent">
+        <div class="max-w-7xl mx-auto grid grid-cols-[auto_1fr_auto] items-center gap-3 md:gap-6">
+            <div class="relative z-10 flex items-center">
+                <button id="mobile-menu-btn" class="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200/80 bg-white/90 text-zinc-900 shadow-sm transition-colors hover:text-gold md:hidden">
+                    <i data-lucide="menu" size="22"></i>
+                </button>
+                <div class="hidden md:flex items-center space-x-8">
                 <a href="#" data-link="shop" class="text-sm font-medium tracking-widest uppercase hover:text-gold transition-colors">Shop</a>
                 <a href="#" data-link="collections" class="text-sm font-medium tracking-widest uppercase hover:text-gold transition-colors">Collections</a>
                 <a href="#" data-link="about" class="text-sm font-medium tracking-widest uppercase hover:text-gold transition-colors">About</a>
                 <a href="/control-room/" data-admin-link class="text-sm font-medium tracking-widest uppercase hover:text-gold transition-colors">Admin</a>
+                </div>
             </div>
 
-            <a href="#" data-link="home" class="absolute left-1/2 -translate-x-1/2">
-                <h1 class="text-2xl md:text-3xl font-serif tracking-[0.2em] font-bold uppercase">Seraphine</h1>
+            <a href="#" data-link="home" class="justify-self-center text-center">
+                <h1 class="text-xl sm:text-2xl md:text-3xl font-serif tracking-[0.16em] md:tracking-[0.2em] font-bold uppercase">Seraphine</h1>
             </a>
 
-            <div class="flex items-center space-x-4 md:space-x-6">
+            <div class="relative z-10 flex items-center justify-end space-x-2 sm:space-x-3 md:space-x-6">
                 <button class="hover:text-gold transition-colors hidden md:block"><i data-lucide="search" size="20"></i></button>
                 <a href="#" data-link="wishlist" class="hover:text-gold transition-colors hidden md:block"><i data-lucide="heart" size="20"></i></a>
                 <div id="user-menu" class="relative"></div>
-                <a href="#" data-link="cart" class="hover:text-gold transition-colors relative">
+                <a href="#" data-link="cart" class="relative flex h-10 w-10 items-center justify-center rounded-full bg-white/85 text-zinc-900 shadow-sm transition-colors hover:text-gold md:h-auto md:w-auto md:bg-transparent md:shadow-none">
                     <i data-lucide="shopping-bag" size="20"></i>
                     <span id="cart-count" class="hidden absolute -top-2 -right-2 bg-gold text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center">0</span>
                 </a>
-                <button id="mobile-menu-btn" class="md:hidden hover:text-gold transition-colors"><i data-lucide="menu" size="24"></i></button>
             </div>
         </div>
     </nav>
 
-    <div id="mobile-menu" class="fixed inset-0 bg-white z-[60] flex flex-col p-8 translate-x-full transition-transform duration-500 ease-in-out">
-        <div class="flex justify-between items-center mb-12">
+    <div id="mobile-menu" class="fixed inset-0 bg-white z-[60] flex flex-col p-6 pt-5 translate-x-full transition-transform duration-500 ease-in-out">
+        <div class="flex justify-between items-center mb-10">
             <h2 class="text-xl font-serif font-bold tracking-widest uppercase">Seraphine</h2>
-            <button id="close-menu-btn"><i data-lucide="x" size="28"></i></button>
+            <button id="close-menu-btn" class="flex h-11 w-11 items-center justify-center rounded-full border border-zinc-200 bg-zinc-50 text-zinc-900"><i data-lucide="x" size="24"></i></button>
         </div>
-        <div class="flex flex-col space-y-8 text-2xl font-serif">
+        <div class="flex flex-col space-y-7 text-2xl font-serif">
             <a href="#" data-link="shop">Shop All</a>
             <a href="#" data-link="collections">Collections</a>
             <a href="#" data-link="about">Our Story</a>
@@ -49,8 +53,9 @@
             <a href="#" data-link="contact">Contact</a>
             <a href="/control-room/" data-admin-link>Admin</a>
         </div>
-        <div class="mt-auto pt-8 border-t border-zinc-100">
-            <a href="#" data-link="login" id="mobile-auth-link" class="text-lg font-medium">Sign In</a>
+        <div class="mt-auto pt-8 border-t border-zinc-100 space-y-3">
+            <a href="#" data-link="login" id="mobile-auth-link" class="block rounded-2xl bg-zinc-950 px-5 py-4 text-base font-medium text-white">Sign In</a>
+            <button id="mobile-logout-btn" class="hidden w-full rounded-2xl border border-zinc-200 px-5 py-4 text-left text-base font-medium text-zinc-900">Logout</button>
         </div>
     </div>
 

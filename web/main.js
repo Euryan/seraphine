@@ -22,6 +22,35 @@ function syncAdminLinks() {
     });
 }
 
+function closeMobileMenu() {
+    const mobileMenu = document.getElementById('mobile-menu');
+    mobileMenu?.classList.add('translate-x-full');
+}
+
+function syncMobileAuthControls() {
+    const mobileAuthLink = document.getElementById('mobile-auth-link');
+    const mobileLogoutBtn = document.getElementById('mobile-logout-btn');
+
+    if (!mobileAuthLink || !mobileLogoutBtn) {
+        return;
+    }
+
+    if (state.user) {
+        mobileAuthLink.textContent = 'My Orders';
+        mobileAuthLink.setAttribute('data-link', 'orders');
+        mobileLogoutBtn.classList.remove('hidden');
+    } else {
+        mobileAuthLink.textContent = 'Sign In';
+        mobileAuthLink.setAttribute('data-link', 'login');
+        mobileLogoutBtn.classList.add('hidden');
+    }
+
+    mobileLogoutBtn.onclick = () => {
+        closeMobileMenu();
+        window.handleLogout();
+    };
+}
+
 // --- Router ---
 export function navigate(page, params = {}) {
     restoreState(); // Restore state sebelum navigasi
@@ -53,6 +82,7 @@ export function render() {
     // Render User Menu
     renderUserMenu();
     syncAdminLinks();
+    syncMobileAuthControls();
 
     // Update Navbar Style
     const nav = document.getElementById('navbar');
@@ -73,16 +103,16 @@ function renderUserMenu() {
     if (state.user) {
         userMenu.innerHTML = `
             <div class="relative">
-                <button id="user-menu-btn" class="flex items-center space-x-2 hover:text-gold transition-colors">
+                <button id="user-menu-btn" class="flex h-10 w-10 items-center justify-center rounded-full bg-white/85 text-zinc-900 shadow-sm transition-colors hover:text-gold md:h-auto md:w-auto md:space-x-2 md:bg-transparent md:shadow-none">
                     <i data-lucide="user" size="20"></i>
                     <span class="text-[10px] font-bold uppercase hidden md:inline">${state.user.username}</span>
                 </button>
-                <div id="user-dropdown" class="absolute right-0 mt-2 w-48 bg-white border border-zinc-200 shadow-lg hidden z-50">
+                <div id="user-dropdown" class="fixed left-4 right-4 top-20 hidden overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-2xl z-50 md:absolute md:left-auto md:right-0 md:top-full md:mt-2 md:w-56 md:rounded-none md:border md:shadow-lg">
                     <div class="px-4 py-3 border-b border-zinc-100">
                         <p class="text-xs font-bold">Username: ${state.user.username}</p>
                         ${state.user.email ? `<p class="text-xs text-zinc-500">Email: ${state.user.email}</p>` : ''}
                     </div>
-                    <a href="#" onclick="event.preventDefault(); window.navigate('orders')" class="block px-4 py-3 text-xs font-bold uppercase hover:bg-zinc-50 transition-colors">
+                    <a href="#" onclick="event.preventDefault(); closeMobileMenu(); window.navigate('orders')" class="block px-4 py-3 text-xs font-bold uppercase hover:bg-zinc-50 transition-colors">
                         My Orders
                     </a>
                     <button id="logout-btn" class="w-full text-left px-4 py-3 text-xs font-bold uppercase hover:bg-zinc-50 transition-colors">
@@ -118,12 +148,13 @@ function renderUserMenu() {
         if (logoutBtn) {
             logoutBtn.addEventListener('click', (e) => {
                 e.preventDefault();
+                closeMobileMenu();
                 window.handleLogout();
             });
         }
     } else {
         userMenu.innerHTML = `
-            <a href="#" data-link="login" class="hover:text-gold transition-colors">
+            <a href="#" data-link="login" class="flex h-10 w-10 items-center justify-center rounded-full bg-white/85 text-zinc-900 shadow-sm transition-colors hover:text-gold md:h-auto md:w-auto md:bg-transparent md:shadow-none">
                 <i data-lucide="user" size="20"></i>
             </a>
         `;
@@ -153,7 +184,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             e.preventDefault();
             const page = link.getAttribute('data-link');
             const category = link.getAttribute('data-category');
+            closeMobileMenu();
             navigate(page, { category });
+        }
+    });
+
+    document.addEventListener('click', (e) => {
+        const adminLink = e.target.closest('[data-admin-link]');
+        if (adminLink) {
+            closeMobileMenu();
         }
     });
 
@@ -169,7 +208,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (closeMenuBtn) {
         closeMenuBtn.addEventListener('click', () => {
-            mobileMenu.classList.add('translate-x-full');
+            closeMobileMenu();
         });
     }
 
@@ -206,5 +245,8 @@ window.selectProductColor = (color) => {
 
 window.handleLogout = () => {
     clearAuthState();
+    closeMobileMenu();
     window.navigate('home');
 };
+
+window.closeMobileMenu = closeMobileMenu;
