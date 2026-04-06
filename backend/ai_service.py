@@ -7,7 +7,6 @@ import os
 import httpx
 from typing import AsyncIterator
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyCN85jBuoYx8k_3Ckxyqh_dI9PIel-LmMM")
 GEMINI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 DEFAULT_MODEL = "gemini-2.5-flash"
 
@@ -58,6 +57,15 @@ For bags and some accessories, "One Size" is typical.
 
 Respond in this exact JSON format only:
 {"recommended_size": "M", "confidence": "high", "explanation": "Your chest measurement of 90cm falls squarely in the M range...", "fit_notes": "This silk gown has a relaxed fit, so M will drape beautifully."}"""
+
+
+def get_gemini_api_key() -> str:
+    api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
+    if not api_key:
+        raise RuntimeError(
+            "GEMINI_API_KEY is not configured. Add it to backend/.env or your environment variables."
+        )
+    return api_key
 
 
 def build_product_catalog_context(products: list[dict]) -> str:
@@ -161,7 +169,8 @@ async def stream_chat_response(
         "generationConfig": {"temperature": 0.7, "maxOutputTokens": 1024},
     }
 
-    url = f"{GEMINI_BASE}/models/{model}:streamGenerateContent?alt=sse&key={GEMINI_API_KEY}"
+    api_key = get_gemini_api_key()
+    url = f"{GEMINI_BASE}/models/{model}:streamGenerateContent?alt=sse&key={api_key}"
 
     async with httpx.AsyncClient(timeout=120.0) as client:
         async with client.stream("POST", url, json=payload) as response:
@@ -227,7 +236,8 @@ async def get_size_recommendation(
         },
     }
 
-    url = f"{GEMINI_BASE}/models/{model}:generateContent?key={GEMINI_API_KEY}"
+    api_key = get_gemini_api_key()
+    url = f"{GEMINI_BASE}/models/{model}:generateContent?key={api_key}"
 
     async with httpx.AsyncClient(timeout=60.0) as client:
         resp = await client.post(url, json=payload)
@@ -262,7 +272,8 @@ async def get_size_recommendation(
 async def check_gemini_health() -> dict:
     """Check if Gemini API key is valid and model is available."""
     try:
-        url = f"{GEMINI_BASE}/models?key={GEMINI_API_KEY}"
+        api_key = get_gemini_api_key()
+        url = f"{GEMINI_BASE}/models?key={api_key}"
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(url)
             resp.raise_for_status()

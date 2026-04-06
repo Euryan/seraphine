@@ -156,6 +156,8 @@ Sebelum menjalankan proyek, siapkan:
 
 ## Environment Configuration
 
+Simpan secret sensitif di file lokal yang tidak di-commit ke Git. Untuk backend, gunakan `backend/.env` dan jadikan `backend/.env.example` sebagai template aman.
+
 ### Backend Environment Variables
 
 Backend membaca environment variable berikut:
