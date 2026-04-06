@@ -177,6 +177,7 @@ function normalizeProduct(product) {
         image: normalizeImageUrl(product.image) || images[0] || '',
         sizes: Array.isArray(product.sizes) ? product.sizes : [],
         colors: Array.isArray(product.colors) ? product.colors : [],
+        reviewEntries: Array.isArray(product.reviewEntries) ? product.reviewEntries : [],
         variantStocks: buildVariantStocks(product),
         isFeatured: Boolean(product.isFeatured),
         isNew: Boolean(product.isNew),

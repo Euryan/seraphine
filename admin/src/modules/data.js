@@ -140,8 +140,26 @@ export async function updateOrderStatus(orderId, status) {
   });
 }
 
+export async function fetchAdminNotifications() {
+  return apiJson('/admin/notifications');
+}
+
+export async function markAdminNotificationsRead(payload = { markAll: true }) {
+  return apiJson('/admin/notifications/read', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function fetchCustomers() {
   return apiJson('/admin/customers');
+}
+
+export async function updateCustomerMembership(customerId, payload) {
+  return apiJson(`/admin/customers/${customerId}/membership`, {
+    method: 'PUT',
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function uploadProductImage(file) {

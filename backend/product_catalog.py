@@ -215,7 +215,7 @@ def is_valid_color(db, product_id: str, color: str | None):
     return color in colors
 
 
-def serialize_product(product: models.Product):
+def serialize_product(product: models.Product, sold_count: int = 0, review_entries: list[dict] | None = None):
     images = json.loads(product.images_json)
     sizes = json.loads(product.sizes_json)
     colors = json.loads(product.colors_json)
@@ -233,8 +233,10 @@ def serialize_product(product: models.Product):
         "colors": colors,
         "stock": get_total_stock_from_variants(variant_stocks),
         "variantStocks": variant_stocks,
+        "soldCount": max(int(sold_count or 0), 0),
         "rating": product.rating,
         "reviews": product.reviews,
+        "reviewEntries": review_entries or [],
         "isFeatured": product.is_featured,
         "isNew": product.is_new,
         "createdAt": product.created_at.isoformat() if product.created_at else None,

@@ -1,7 +1,8 @@
 import { getProductById, getVariantStock, loadProducts } from './data.js';
 import { API_BASE } from './config.js';
-import { state, saveState, clearAuthState, setPendingAuthAction, clearPendingAuthAction } from './state.js';
+import { state, saveState, clearAuthState, setPendingAuthAction, clearPendingAuthAction, mergeAccountData, hydrateAccountStateForCurrentUser, setAccountData } from './state.js';
 import { render } from '../main.js';
+import { getSavedMeasurements, saveMeasurements, syncMeasurementsCache } from './size-advisor.js';
 
 function getNoticeContainer() {
     let container = document.getElementById('seraphine-notice-container');
@@ -149,6 +150,34 @@ async function executePendingAuthAction() {
     }
 }
 
+export async function fetchUserNotifications() {
+    if (!state.user || !state.token) {
+        return { items: [], unreadCount: 0 };
+    }
+
+    const payload = await apiJson(`${API_BASE}/me/notifications`);
+    state.notifications = Array.isArray(payload.items) ? payload.items : [];
+    state.notificationUnreadCount = Number(payload.unreadCount || 0);
+    return payload;
+}
+
+export async function markUserNotificationsRead(payload = { markAll: true }) {
+    if (!state.user || !state.token) {
+        return { updated: 0 };
+    }
+
+    const response = await apiJson(`${API_BASE}/me/notifications/read`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+    });
+    state.notificationUnreadCount = 0;
+    state.notifications = (state.notifications || []).map((item) => ({
+        ...item,
+        isRead: true,
+    }));
+    return response;
+}
+
 function isAuthFailure(status, message) {
     if (status !== 401) return false;
     const normalizedMessage = String(message || '').toLowerCase();
@@ -182,6 +211,43 @@ async function apiJson(url, options = {}) {
         throw new Error(message);
     }
     return body;
+}
+
+async function persistAccountUpdate(payload) {
+    const response = await apiJson(`${API_BASE}/me/account`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+    });
+    if (response.account) {
+        if (response.account.email) {
+            state.user = {
+                ...state.user,
+                email: response.account.email,
+            };
+        }
+        setAccountData(response.account);
+        syncMeasurementsCache(response.account.measurements || {});
+    }
+    return response.account;
+}
+
+async function fetchAccountProfile() {
+    if (!state.user || !state.token) return null;
+    try {
+        const account = await apiJson(`${API_BASE}/me/account`);
+        state.user = {
+            ...state.user,
+            email: account.email || state.user.email,
+        };
+        setAccountData(account);
+        syncMeasurementsCache(account.measurements || {});
+        saveState();
+        render();
+        return account;
+    } catch (err) {
+        console.warn('Fetch account failed', err.message);
+        return null;
+    }
 }
 
 async function fetchCart() {
@@ -328,7 +394,9 @@ export async function handleRegister(form) {
         state.cart = [];
         state.wishlist = [];
         state.orders = [];
+        hydrateAccountStateForCurrentUser();
         saveState();
+        await fetchAccountProfile();
         await fetchCart();
         await fetchWishlist();
         await fetchOrders();
@@ -365,7 +433,9 @@ export async function handleLogin(form) {
         state.cart = [];
         state.wishlist = [];
         state.orders = [];
+        hydrateAccountStateForCurrentUser();
         saveState();
+        await fetchAccountProfile();
         await fetchCart();
         await fetchWishlist();
         await fetchOrders();
@@ -413,19 +483,40 @@ export async function handleCheckout(form) {
     try {
         const firstName = form.firstName.value.trim();
         const lastName = form.lastName.value.trim();
+        const email = form.email.value.trim();
+        const phone = form.phone.value.trim();
         const address = form.address.value.trim();
-        const cardNumber = form.cardNumber.value.replace(/\s+/g, '');
+        const city = form.city.value.trim();
+        const province = form.province.value.trim();
+        const postalCode = form.postalCode.value.trim();
+        const deliveryNotes = form.deliveryNotes.value.trim();
+        const shippingService = form.shippingService.value;
+        const paymentMethod = form.paymentMethod.value;
+        const paymentReference = form.paymentReference.value.replace(/\s+/g, '');
 
-        if (cardNumber.length < 4) {
-            alert('Nomor kartu minimal harus memiliki 4 digit');
+        if (!firstName || !lastName || !email || !phone || !address || !city || !province || !postalCode) {
+            alert('Lengkapi seluruh data pribadi dan pengiriman sebelum checkout.');
+            return;
+        }
+
+        if (paymentMethod !== 'cod' && paymentReference.length < 4) {
+            alert('Referensi pembayaran minimal harus memiliki 4 karakter atau digit.');
             return;
         }
 
         const payload = {
             first_name: firstName,
             last_name: lastName,
+            email,
+            phone,
             address,
-            payment_last4: cardNumber.slice(-4),
+            city,
+            province,
+            postal_code: postalCode,
+            shipping_service: shippingService,
+            delivery_notes: deliveryNotes,
+            payment_method: paymentMethod,
+            payment_last4: paymentMethod === 'cod' ? '' : paymentReference.slice(-4),
             items: state.cart.map(item => {
                 return {
                     product_id: item.product_id,
@@ -441,6 +532,44 @@ export async function handleCheckout(form) {
         };
 
         const data = await apiJson(`${API_BASE}/orders/checkout`, { method: 'POST', body: JSON.stringify(payload) });
+        try {
+            await persistAccountUpdate({
+                profile: {
+                    firstName,
+                    lastName,
+                    email,
+                    phone,
+                },
+                address: {
+                    recipient: [firstName, lastName].filter(Boolean).join(' '),
+                    phone,
+                    street: address,
+                    city,
+                    province,
+                    postalCode,
+                    notes: deliveryNotes,
+                },
+            });
+        } catch (accountErr) {
+            console.warn('Persist checkout account data failed', accountErr.message);
+            mergeAccountData({
+                profile: {
+                    firstName,
+                    lastName,
+                    email,
+                    phone,
+                },
+                address: {
+                    recipient: [firstName, lastName].filter(Boolean).join(' '),
+                    phone,
+                    street: address,
+                    city,
+                    province,
+                    postalCode,
+                    notes: deliveryNotes,
+                },
+            });
+        }
         await loadProducts();
         await fetchCart();
         await fetchOrders();
@@ -462,5 +591,151 @@ export async function handleCheckout(form) {
     }
 }
 
-export { fetchCart, fetchWishlist, fetchOrders };
+export async function submitProductReview(orderId, orderItemId) {
+    if (!state.user || !state.token) {
+        showNotice('Login diperlukan untuk memberi rating.', 'warning');
+        window.navigate('login');
+        return;
+    }
+
+    const ratingField = document.getElementById(`review-rating-${orderItemId}`);
+    const commentField = document.getElementById(`review-comment-${orderItemId}`);
+    const rating = Number(ratingField?.value || 0);
+    const comment = commentField?.value?.trim() || '';
+
+    if (rating < 1 || rating > 5) {
+        showNotice('Pilih rating 1 sampai 5 bintang.', 'warning');
+        return;
+    }
+
+    try {
+        await apiJson(`${API_BASE}/orders/${orderId}/reviews`, {
+            method: 'POST',
+            body: JSON.stringify({
+                order_item_id: orderItemId,
+                rating,
+                comment,
+            }),
+        });
+        await loadProducts();
+        await fetchOrders();
+        showNotice('Terima kasih. Review berhasil dikirim.', 'success');
+        window.navigate('orders');
+    } catch (err) {
+        showNotice(`Review gagal dikirim: ${err.message}`, 'error');
+    }
+}
+
+export async function saveAccountProfile(form) {
+    if (!state.user) {
+        showNotice('Login diperlukan untuk mengubah profil.', 'warning');
+        window.navigate('login');
+        return;
+    }
+
+    try {
+        await persistAccountUpdate({
+            profile: {
+                firstName: form.firstName.value.trim(),
+                lastName: form.lastName.value.trim(),
+                email: form.email.value.trim(),
+                phone: form.phone.value.trim(),
+                birthday: form.birthday.value,
+                gender: form.gender.value,
+            },
+        });
+        render();
+        showNotice('Data pribadi berhasil diperbarui.', 'success');
+    } catch (err) {
+        showNotice(`Gagal menyimpan data pribadi: ${err.message}`, 'error');
+    }
+}
+
+export async function saveAccountAddress(form) {
+    if (!state.user) {
+        showNotice('Login diperlukan untuk mengubah alamat.', 'warning');
+        window.navigate('login');
+        return;
+    }
+
+    try {
+        await persistAccountUpdate({
+            address: {
+                label: form.label.value.trim() || 'Primary Address',
+                recipient: form.recipient.value.trim(),
+                phone: form.phone.value.trim(),
+                street: form.street.value.trim(),
+                city: form.city.value.trim(),
+                province: form.province.value.trim(),
+                postalCode: form.postalCode.value.trim(),
+                notes: form.notes.value.trim(),
+            },
+        });
+        render();
+        showNotice('Alamat utama berhasil disimpan.', 'success');
+    } catch (err) {
+        showNotice(`Gagal menyimpan alamat: ${err.message}`, 'error');
+    }
+}
+
+export async function saveAccountPreferences(form) {
+    if (!state.user) {
+        showNotice('Login diperlukan untuk mengubah preferensi.', 'warning');
+        window.navigate('login');
+        return;
+    }
+
+    try {
+        await persistAccountUpdate({
+            preferences: {
+                preferredContact: form.preferredContact.value,
+                styleProfile: form.styleProfile.value,
+                fitPreference: form.fitPreference.value,
+                notifyRestock: form.notifyRestock.checked,
+                notifyDrops: form.notifyDrops.checked,
+                prioritySupport: form.prioritySupport.checked,
+            },
+        });
+        render();
+        showNotice('Preferensi akun berhasil diperbarui.', 'success');
+    } catch (err) {
+        showNotice(`Gagal menyimpan preferensi: ${err.message}`, 'error');
+    }
+}
+
+export async function saveAccountMeasurements(form) {
+    if (!state.user) {
+        showNotice('Login diperlukan untuk menyimpan ukuran tubuh.', 'warning');
+        window.navigate('login');
+        return;
+    }
+
+    const measurements = {
+        height_cm: Number(form.height_cm.value) || null,
+        weight_kg: Number(form.weight_kg.value) || null,
+        chest_cm: Number(form.chest_cm.value) || null,
+        waist_cm: Number(form.waist_cm.value) || null,
+        hip_cm: Number(form.hip_cm.value) || null,
+        preferences: form.measurementPreference.value || null,
+    };
+
+    saveMeasurements({
+        ...getSavedMeasurements(),
+        ...measurements,
+    });
+    try {
+        await persistAccountUpdate({
+            measurements,
+            preferences: {
+                fitPreference: form.measurementPreference.value || state.account.preferences.fitPreference,
+            },
+        });
+        render();
+        showNotice('Data ukuran tubuh berhasil disimpan.', 'success');
+    } catch (err) {
+        showNotice(`Gagal menyimpan ukuran tubuh: ${err.message}`, 'error');
+    }
+}
+
+export { fetchCart, fetchWishlist, fetchOrders, fetchAccountProfile };
 

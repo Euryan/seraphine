@@ -8,6 +8,17 @@ import { icons } from './icons.js';
 import { renderTable, modal, toast } from './ui.js';
 import { exportToCSV } from './export.js';
 
+function getProductSearchText(product) {
+  return [
+    product.name,
+    product.sku,
+    product.category,
+    product.description,
+    ...(product.sizes || []),
+    ...(product.colors || []),
+  ].join(' ').toLowerCase();
+}
+
 export const renderProducts = async (container) => {
   const products = await fetchProducts();
   const categories = ['Apparel', 'Bags', 'Footwear', 'Accessories'];
@@ -32,12 +43,12 @@ export const renderProducts = async (container) => {
             <div class="absolute inset-y-0 left-3 flex items-center pointer-events-none text-zinc-400">
               ${icons.search}
             </div>
-            <input type="text" placeholder="Search products..." class="w-full bg-zinc-100 border-none rounded-lg pl-10 pr-4 py-2 text-sm text-zinc-600 focus:ring-1 focus:ring-zinc-300 placeholder:text-zinc-400">
+            <input id="products-search" type="text" placeholder="Search product, SKU, size, or color..." class="w-full bg-zinc-100 border-none rounded-lg pl-10 pr-4 py-2 text-sm text-zinc-600 focus:ring-1 focus:ring-zinc-300 placeholder:text-zinc-400">
           </div>
           <div class="flex items-center gap-2">
-            <select class="bg-zinc-100 border-none text-sm text-zinc-500 rounded-lg px-3 py-2 focus:ring-0">
-              <option>All Categories</option>
-              ${categories.map((category) => `<option>${category}</option>`).join('')}
+            <select id="products-category-filter" class="bg-zinc-100 border-none text-sm text-zinc-500 rounded-lg px-3 py-2 focus:ring-0">
+              <option value="all">All Categories</option>
+              ${categories.map((category) => `<option value="${category}">${category}</option>`).join('')}
             </select>
           </div>
         </div>
@@ -47,9 +58,9 @@ export const renderProducts = async (container) => {
   `;
 
   const tableContainer = document.getElementById('products-table-container');
-  renderTable({
-    container: tableContainer,
-    data: products,
+  const searchInput = document.getElementById('products-search');
+  const categoryFilter = document.getElementById('products-category-filter');
+  const tableConfig = {
     columns: [
       { key: 'image', label: 'Product', render: (val, item) => `
         <div class="flex items-center gap-4">
@@ -71,6 +82,8 @@ export const renderProducts = async (container) => {
           <span class="text-xs text-zinc-400">${item.variantStocks?.length || 0} variants</span>
         </div>
       `},
+      { key: 'soldCount', label: 'Sold', render: (val) => `<span class="text-sm font-medium text-black">${Number(val || 0)} units</span>` },
+      { key: 'rating', label: 'Rating', render: (val, item) => `<span class="text-xs text-zinc-500">${Number(val || 0).toFixed(1)} / 5 · ${Number(item.reviews || 0)} reviews</span>` },
       { key: 'colors', label: 'Colorways', render: (val) => `<span class="text-xs text-zinc-500">${(val || []).join(', ')}</span>` },
     ],
     actions: (item) => {
@@ -91,10 +104,47 @@ export const renderProducts = async (container) => {
       div.appendChild(deleteBtn);
       return div;
     }
-  });
+  };
+
+  const getFilteredProducts = () => {
+    const keyword = searchInput?.value.trim().toLowerCase() || '';
+    const category = categoryFilter?.value || 'all';
+    return products.filter((product) => {
+      const matchesKeyword = !keyword || getProductSearchText(product).includes(keyword);
+      const matchesCategory = category === 'all' || product.category === category;
+      return matchesKeyword && matchesCategory;
+    });
+  };
+
+  const renderFilteredProducts = () => {
+    renderTable({
+      container: tableContainer,
+      data: getFilteredProducts(),
+      columns: tableConfig.columns,
+      actions: tableConfig.actions,
+    });
+  };
+
+  searchInput?.addEventListener('input', renderFilteredProducts);
+  categoryFilter?.addEventListener('change', renderFilteredProducts);
+  renderFilteredProducts();
 
   document.getElementById('add-product-btn')?.addEventListener('click', () => showProductModal());
-  document.getElementById('export-products-btn')?.addEventListener('click', () => exportToCSV(products, 'seraphine_products'));
+  document.getElementById('export-products-btn')?.addEventListener('click', () => {
+    exportToCSV(getFilteredProducts(), 'seraphine_products', [
+      { key: 'id', label: 'Product ID' },
+      { key: 'sku', label: 'SKU' },
+      { key: 'name', label: 'Name' },
+      { key: 'category', label: 'Category' },
+      { key: 'price', label: 'Price' },
+      { key: 'stock', label: 'Stock' },
+      { key: 'soldCount', label: 'Sold Count' },
+      { key: 'rating', label: 'Rating' },
+      { key: 'reviews', label: 'Reviews' },
+      { key: 'sizes', label: 'Sizes' },
+      { key: 'colors', label: 'Colors' },
+    ]);
+  });
 };
 
 function showProductModal(product) {
