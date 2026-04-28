@@ -68,6 +68,21 @@ def get_gemini_api_key() -> str:
     return api_key
 
 
+def normalize_gemini_error(error: Exception) -> str:
+    if isinstance(error, RuntimeError):
+        return str(error)
+    if isinstance(error, httpx.HTTPStatusError):
+        status_code = error.response.status_code if error.response is not None else None
+        if status_code == 400:
+            return "Gemini request was rejected. Check model name or request payload."
+        if status_code in {401, 403}:
+            return "Gemini API key is invalid, revoked, or not authorized for this model."
+        if status_code == 429:
+            return "Gemini API quota has been exceeded. Try again later or use a different key."
+        return f"Gemini request failed with status {status_code}."
+    return str(error)
+
+
 def build_product_catalog_context(products: list[dict]) -> str:
     if not products:
         return "No products currently available."
@@ -172,21 +187,24 @@ async def stream_chat_response(
     api_key = get_gemini_api_key()
     url = f"{GEMINI_BASE}/models/{model}:streamGenerateContent?alt=sse&key={api_key}"
 
-    async with httpx.AsyncClient(timeout=120.0) as client:
-        async with client.stream("POST", url, json=payload) as response:
-            response.raise_for_status()
-            async for line in response.aiter_lines():
-                if not line.startswith("data: "):
-                    continue
-                try:
-                    data = json.loads(line[6:])
-                    parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
-                    for part in parts:
-                        text = part.get("text", "")
-                        if text:
-                            yield text
-                except (json.JSONDecodeError, IndexError, KeyError):
-                    continue
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            async with client.stream("POST", url, json=payload) as response:
+                response.raise_for_status()
+                async for line in response.aiter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    try:
+                        data = json.loads(line[6:])
+                        parts = data.get("candidates", [{}])[0].get("content", {}).get("parts", [])
+                        for part in parts:
+                            text = part.get("text", "")
+                            if text:
+                                yield text
+                    except (json.JSONDecodeError, IndexError, KeyError):
+                        continue
+    except Exception as error:
+        raise RuntimeError(normalize_gemini_error(error)) from error
 
 
 async def get_size_recommendation(
@@ -239,10 +257,13 @@ async def get_size_recommendation(
     api_key = get_gemini_api_key()
     url = f"{GEMINI_BASE}/models/{model}:generateContent?key={api_key}"
 
-    async with httpx.AsyncClient(timeout=60.0) as client:
-        resp = await client.post(url, json=payload)
-        resp.raise_for_status()
-        data = resp.json()
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception as error:
+        raise RuntimeError(normalize_gemini_error(error)) from error
 
     raw = (
         data.get("candidates", [{}])[0]
@@ -281,7 +302,7 @@ async def check_gemini_health() -> dict:
             models = [m.get("name", "") for m in data.get("models", [])]
             return {"online": True, "provider": "gemini", "model": DEFAULT_MODEL, "models_available": len(models)}
     except Exception as e:
-        return {"online": False, "provider": "gemini", "error": str(e)}
+        return {"online": False, "provider": "gemini", "error": normalize_gemini_error(e)}
 
 
 def get_chat_suggestions(page: str, product: dict | None = None) -> list[str]:

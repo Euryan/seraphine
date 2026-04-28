@@ -154,6 +154,7 @@ async function sendMessage(text) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let fullResponse = '';
+        let streamError = '';
 
         while (true) {
             const { done, value } = await reader.read();
@@ -172,6 +173,7 @@ async function sendMessage(text) {
                         messages.scrollTop = messages.scrollHeight;
                     }
                     if (data.error) {
+                        streamError = data.error;
                         updateMessageContent(aiMsgId, `Sorry, I encountered an error: ${data.error}`);
                     }
                 } catch { /* skip malformed lines */ }
@@ -180,6 +182,8 @@ async function sendMessage(text) {
 
         if (fullResponse) {
             chatHistory.push({ role: 'assistant', content: fullResponse });
+        } else if (streamError) {
+            updateMessageContent(aiMsgId, `Sorry, I encountered an error: ${streamError}`);
         } else {
             updateMessageContent(aiMsgId, "I'm unable to respond right now. Please try again in a moment.");
         }

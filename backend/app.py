@@ -7,7 +7,7 @@ from uuid import uuid4
 from dotenv import load_dotenv
 
 BACKEND_DIR = Path(__file__).resolve().parent
-load_dotenv(BACKEND_DIR / ".env")
+load_dotenv(BACKEND_DIR / ".env", override=True)
 
 from fastapi import FastAPI, Depends, File, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse

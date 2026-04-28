@@ -8,6 +8,7 @@ export default defineConfig(({ command }) => ({
     port: 3101,
     strictPort: true,
     host: '0.0.0.0',
+    allowedHosts: ['.ngrok-free.app', '.ngrok-free.dev', '.ngrok.app'],
     hmr: process.env.DISABLE_HMR !== 'true',
     proxy: {
       '/api': {
